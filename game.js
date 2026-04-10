@@ -12,51 +12,33 @@ const TILE_TYPES = [
     { name: 'gold', color: 0xffff00, icon: '🪙', effect: 'gold' }
 ];
 
-const MONSTER_AVATARS = ['�️', '👹', '👺', '🧟', '👾', '🤖', '🐉', '🕷️', '🦑'];
 const MONSTER_NAMES = ['Red Squirrel', 'Pig Goblin', 'Orc Pig', 'Sloth Troll', 'Bunny Warlock', 'Hamster Skeleton', 'Guinea Pig Lich', 'Raccoon Bandit'];
-const PLAYER_AVATAR = '👸';
-
-// Body configs for procedural character rendering
-const PLAYER_BODY = {
-    head: 0xffe0bd, headSize: 9, eyeColor: 0x2244aa,
-    torso: 0x3366cc, torsoW: 14, torsoH: 16,
-    armColor: 0x3366cc, legColor: 0x553311,
-    skinColor: 0xffe0bd, hairColor: 0xcc8833, hairStyle: 'long',
-    weaponColor: 0xaaaaaa, shieldColor: 0x886633,
-    facingRight: true
-};
 
 const MONSTER_BODIES = [
-    // Red Squirrel — sprite-based enemy (index 0)
-    { head: 0x993311, headSize: 10, eyeColor: 0xff4400, torso: 0x774422, torsoW: 16, torsoH: 16, armColor: 0x993311, legColor: 0x553311, skinColor: 0x993311, hairColor: 0xcc4400, hairStyle: 'spikes', weaponColor: 0x664422, shieldColor: 0, facingRight: false, spriteKey: 'redsquirrel',
+    // Red Squirrel (index 0)
+    { spriteKey: 'redsquirrel',
       innate: [{ icon: '💨', name: 'Nimble', desc: '10% chance to evade attacks.' }] },
-    // Pig Goblin — sprite-based enemy (index 1)
-    { head: 0x668833, headSize: 10, eyeColor: 0xffaa00, torso: 0x556b2f, torsoW: 15, torsoH: 16, armColor: 0x668833, legColor: 0x445522, skinColor: 0x668833, hairColor: 0x444422, hairStyle: 'none', weaponColor: 0x775533, shieldColor: 0, facingRight: false, spriteKey: 'skinnypiggoblin',
+    // Pig Goblin (index 1)
+    { spriteKey: 'skinnypiggoblin',
       innate: [{ id: 'doubleAttack', icon: '⚔️', name: 'Feral', desc: 'Attacks twice per turn.' }] },
-    // Orc Pig — sprite-based enemy (index 2)
-    { head: 0x557744, headSize: 11, eyeColor: 0xff6600, torso: 0x445533, torsoW: 18, torsoH: 18, armColor: 0x557744, legColor: 0x334422, skinColor: 0x557744, hairColor: 0x222211, hairStyle: 'none', weaponColor: 0x886644, shieldColor: 0, facingRight: false, spriteKey: 'orcpig',
+    // Orc Pig (index 2)
+    { spriteKey: 'orcpig',
       innate: [{ id: 'toughHide', icon: '🐗', name: 'Tough Hide', desc: 'Takes reduced damage from all sources.' }] },
-    // Sloth Troll — sprite-based enemy (index 3)
-    { head: 0x4a5a3a, headSize: 12, eyeColor: 0x66ccaa, torso: 0x3d4a2e, torsoW: 20, torsoH: 20, armColor: 0x4a5a3a, legColor: 0x2e3a22, skinColor: 0x4a5a3a, hairColor: 0x2a3a1a, hairStyle: 'none', weaponColor: 0x7a6644, shieldColor: 0, facingRight: false, spriteKey: 'slothtroll',
+    // Sloth Troll (index 3)
+    { spriteKey: 'slothtroll',
       innate: [{ id: 'trollRegen', icon: '💪', name: 'Regeneration', desc: 'Heals 10% of its max health at the start of each turn.' }] },
-    // Bunny Warlock — sprite-based enemy (index 4)
-    { head: 0x2a2a2a, headSize: 10, eyeColor: 0xcc2244, torso: 0x661133, torsoW: 15, torsoH: 16, armColor: 0x2a2a2a, legColor: 0x1a1a1a, skinColor: 0x2a2a2a, hairColor: 0x1a1a1a, hairStyle: 'none', weaponColor: 0x9933cc, shieldColor: 0, facingRight: false, spriteKey: 'bunnywarlock',
+    // Bunny Warlock (index 4)
+    { spriteKey: 'bunnywarlock',
       innate: [{ id: 'elementalChaos', icon: '🔮', name: 'Elemental Chaos', desc: 'Deals a random type of elemental damage instead of regular damage.' }] },
-    // Hamster Skeleton — sprite-based enemy (index 5)
-    { head: 0xd4c9a8, headSize: 10, eyeColor: 0x44ff66, torso: 0xc8b898, torsoW: 15, torsoH: 16, armColor: 0xd4c9a8, legColor: 0xb8a888, skinColor: 0xd4c9a8, hairColor: 0xa89878, hairStyle: 'none', weaponColor: 0x888888, shieldColor: 0, facingRight: false, spriteKey: 'hamsterskeleton',
+    // Hamster Skeleton (index 5)
+    { spriteKey: 'hamsterskeleton',
       innate: [{ id: 'undead', icon: '💀', name: 'Undead', desc: '33% chance to resurrect at 50% health upon death.' }] },
-    // Guinea Pig Lich — boss enemy (index 6), always Legendary, always solo
-    { head: 0x8b6914, headSize: 11, eyeColor: 0x00ff44, torso: 0x4a3080, torsoW: 18, torsoH: 19,
-      armColor: 0x4a3080, legColor: 0x2e1a5a, skinColor: 0xb8943c, hairColor: 0x2a1a4a, hairStyle: 'none',
-      weaponColor: 0x44ff44, shieldColor: 0, facingRight: false, spriteKey: 'guineapiglich',
-      isBoss: true,
+    // Guinea Pig Lich — boss (index 6)
+    { spriteKey: 'guineapiglich', isBoss: true,
       spriteOriginY: 1, spritePosYOffset: 84, spriteDisplayW: 182, spriteDisplayH: 149,
       innate: [{ id: 'cursedAura', icon: '☠️', name: 'Cursed Aura', desc: 'Radiates dark energy that saps the hero\'s life force each turn.' }] },
-    // Raccoon Bandit — sprite-based enemy (index 7)
-    { head: 0x5a4a3a, headSize: 10, eyeColor: 0xddaa44, torso: 0x3a2e22, torsoW: 15, torsoH: 16,
-      armColor: 0x3a2e22, legColor: 0x2a1e14, skinColor: 0x8a7a6a, hairColor: 0x2a2020, hairStyle: 'none',
-      weaponColor: 0xcccccc, shieldColor: 0, facingRight: false, spriteKey: 'raccoonbandit',
-      spriteDisplayW: 155, spriteDisplayH: 130,
+    // Raccoon Bandit (index 7)
+    { spriteKey: 'raccoonbandit', spriteDisplayW: 155, spriteDisplayH: 130,
       innate: [{ id: 'goldTheft', icon: '🪙', name: 'Pickpocket', desc: 'Steals 5% of the hero\'s gold each time it attacks.' }] }
 ];
 
@@ -921,10 +903,6 @@ class Match3Scene extends Phaser.Scene {
         this.targetEnemyIndex = 0;
         this.encounterSize = 1;
         this.playerStatsText = null;
-        this.playerAvatar = null;
-        this.playerBodyContainer = null;
-        this.playerBodyParts = null;
-        this.playerIdleTweens = [];
         this.playerShieldBarBg = null;
         this.playerShieldBar = null;
         this.playerShieldLabel = null;
@@ -1244,10 +1222,7 @@ class Match3Scene extends Phaser.Scene {
         if (this.enemyInfoPopup) this.enemyInfoPopup.setVisible(false);
         if (this.enemyInfoPopupSpriteRef) { this.enemyInfoPopupSpriteRef.destroy(); this.enemyInfoPopupSpriteRef = null; }
         this.enemies.forEach(enemy => {
-            enemy.idleTweens.forEach(t => t.remove());
-            enemy.idleTweens.length = 0;
             if (enemy.enemySprite) enemy.enemySprite.destroy();
-            else if (enemy.bodyContainer) enemy.bodyContainer.destroy();
             if (enemy.healthBar) enemy.healthBar.destroy();
             if (enemy.healthBarBg) enemy.healthBarBg.destroy();
             if (enemy.healthText) enemy.healthText.destroy();
@@ -1299,15 +1274,13 @@ class Match3Scene extends Phaser.Scene {
             const affixes = this.rollEnemyAffixes(rarity);
 
             // Apply rarity multiplier then per-affix modifiers
-            const bossFirstEncounterMult = 1;
-            let rawHp  = Math.round(stats.hp  * rarity.hpMult * bossFirstEncounterMult);
-            let rawAtk = Math.round(stats.atk * rarity.atkMult * bossFirstEncounterMult);
+            let rawHp  = Math.round(stats.hp  * rarity.hpMult);
+            let rawAtk = Math.round(stats.atk * rarity.atkMult);
             const finalStats = this.applyEnemyAffixStats(rawHp, rawAtk, affixes);
 
             const displayName = this.buildRarityEnemyName(baseName, rarity, affixes);
 
-            let bodyContainer, bodyParts, enemySprite = null;
-            const idleTweens = [];
+            let enemySprite = null;
 
             if (bodyCfg.spriteKey) {
                 // Support per-sprite origin and Y-offset for animation stabilisation
@@ -1332,15 +1305,6 @@ class Match3Scene extends Phaser.Scene {
                     }
                 });
                 hudContainer.add(enemySprite);
-                bodyContainer = enemySprite;
-                bodyParts = null;
-            } else {
-                const body = this.buildCharacterBody(bodyCfg, pos.x, pos.y);
-                body.container.setScale(pos.scale);
-                hudContainer.add(body.container);
-                this.startIdleAnimation(body.container, body.parts, idleTweens);
-                bodyContainer = body.container;
-                bodyParts = body.parts;
             }
 
             const barY = pos.barY;
@@ -1371,28 +1335,27 @@ class Match3Scene extends Phaser.Scene {
             hudContainer.add(marker);
 
             // Short tap = change target; long press (500 ms) = show info popup
-            const clickTarget = enemySprite || bodyContainer;
-            if (clickTarget) {
-                clickTarget.setInteractive({ useHandCursor: true });
+            if (enemySprite) {
+                enemySprite.setInteractive({ useHandCursor: true });
                 const enemyIndex = i;
                 let lpTimer = null;
                 let lpFired = false;
 
-                clickTarget.on('pointerdown', () => {
+                enemySprite.on('pointerdown', () => {
                     lpFired = false;
                     lpTimer = this.time.delayedCall(500, () => {
                         lpFired = true;
                         this.showEnemyInfoPopup(enemyIndex);
                     });
                 });
-                clickTarget.on('pointerup', () => {
+                enemySprite.on('pointerup', () => {
                     if (lpTimer) { lpTimer.remove(false); lpTimer = null; }
                     if (!lpFired && this.enemies[enemyIndex] && this.enemies[enemyIndex].alive) {
                         this.targetEnemyIndex = enemyIndex;
                         this.updateEnemyTargetMarkers();
                     }
                 });
-                clickTarget.on('pointerout', () => {
+                enemySprite.on('pointerout', () => {
                     if (lpTimer) { lpTimer.remove(false); lpTimer = null; }
                 });
             }
@@ -1408,10 +1371,7 @@ class Match3Scene extends Phaser.Scene {
                 bodyIndex: monsterIndex,
                 rarity: rarity,
                 affixes: affixes,
-                bodyContainer: bodyContainer,
-                bodyParts: bodyParts,
                 enemySprite: enemySprite,
-                idleTweens: idleTweens,
                 healthBar: hpBar,
                 healthBarBg: hpBg,
                 healthText: hpText,
@@ -1599,8 +1559,6 @@ class Match3Scene extends Phaser.Scene {
     }
 
     create() {
-        console.log('Scene created!');
-
         // Inject a default black stroke on every text object for readability.
         // Individual calls that already set their own stroke/strokeThickness keep their values.
         const _origAddText = this.add.text.bind(this.add);
@@ -4669,222 +4627,6 @@ class Match3Scene extends Phaser.Scene {
         this.player.equipment[slotKey] = 'None';
     }
 
-    // -----------------------------------------------------------------------
-    // Procedural character rendering
-    // -----------------------------------------------------------------------
-    buildCharacterBody(cfg, cx, cy) {
-        const container = this.add.container(cx, cy);
-        const parts = {};
-        const facing = cfg.facingRight ? 1 : -1;
-
-        // Legs
-        const legSpacing = 4;
-        parts.leftLeg = this.add.rectangle(-legSpacing * facing, 20, 5, 14, cfg.legColor).setOrigin(0.5, 0);
-        parts.rightLeg = this.add.rectangle(legSpacing * facing, 20, 5, 14, cfg.legColor).setOrigin(0.5, 0);
-        container.add([parts.leftLeg, parts.rightLeg]);
-
-        // Torso
-        parts.torso = this.add.rectangle(0, 4, cfg.torsoW, cfg.torsoH, cfg.torso).setOrigin(0.5, 0);
-        container.add(parts.torso);
-
-        // Arms
-        parts.backArm = this.add.rectangle(-8 * facing, 6, 5, 14, cfg.armColor).setOrigin(0.5, 0);
-        parts.frontArm = this.add.rectangle(8 * facing, 6, 5, 14, cfg.armColor).setOrigin(0.5, 0);
-        container.add([parts.backArm, parts.frontArm]);
-
-        // Weapon in front hand
-        if (cfg.weaponColor) {
-            parts.weapon = this.add.rectangle(12 * facing, 4, 3, 22, cfg.weaponColor).setOrigin(0.5, 0);
-            container.add(parts.weapon);
-        }
-        // Shield in back hand
-        if (cfg.shieldColor) {
-            parts.shield = this.add.ellipse(-12 * facing, 10, 10, 12, cfg.shieldColor).setOrigin(0.5);
-            container.add(parts.shield);
-        }
-
-        // Head
-        parts.head = this.add.circle(0, 0, cfg.headSize, cfg.head).setOrigin(0.5, 1);
-        container.add(parts.head);
-
-        // Eyes
-        const eyeOffX = 3 * facing;
-        parts.leftEye = this.add.circle(eyeOffX - 2, -cfg.headSize + 3, 1.5, cfg.eyeColor);
-        parts.rightEye = this.add.circle(eyeOffX + 2, -cfg.headSize + 3, 1.5, cfg.eyeColor);
-        container.add([parts.leftEye, parts.rightEye]);
-
-        // Hair / head decoration
-        if (cfg.hairStyle === 'long') {
-            parts.hair = this.add.ellipse(0, -cfg.headSize * 2 + 4, cfg.headSize * 2 + 4, cfg.headSize + 4, cfg.hairColor).setOrigin(0.5, 0.3);
-            const hairBack = this.add.rectangle(-4 * facing, -cfg.headSize + 6, 6, 10, cfg.hairColor).setOrigin(0.5, 0);
-            container.add([parts.hair, hairBack]);
-            container.sendToBack(hairBack);
-            container.sendToBack(parts.hair);
-        } else if (cfg.hairStyle === 'horns') {
-            const lh = this.add.triangle(-5 * facing, -cfg.headSize * 2 + 2, 0, 10, 4, 0, 8, 10, cfg.hairColor);
-            const rh = this.add.triangle(5 * facing, -cfg.headSize * 2 + 2, 0, 10, 4, 0, 8, 10, cfg.hairColor);
-            container.add([lh, rh]);
-        } else if (cfg.hairStyle === 'messy') {
-            for (let i = -2; i <= 2; i++) {
-                const strand = this.add.rectangle(i * 3, -cfg.headSize * 2 + 2, 2, Phaser.Math.Between(4, 8), cfg.hairColor).setOrigin(0.5, 1);
-                container.add(strand);
-            }
-        } else if (cfg.hairStyle === 'antenna') {
-            const ant = this.add.rectangle(0, -cfg.headSize * 2 - 2, 2, 8, cfg.hairColor).setOrigin(0.5, 1);
-            const tip = this.add.circle(0, -cfg.headSize * 2 - 4, 3, 0x00ffff);
-            container.add([ant, tip]);
-        } else if (cfg.hairStyle === 'spikes') {
-            for (let i = -2; i <= 2; i++) {
-                const spike = this.add.triangle(i * 4, -cfg.headSize * 2, 0, 8, 3, 0, 6, 8, cfg.hairColor);
-                container.add(spike);
-            }
-        } else if (cfg.hairStyle === 'tentacles') {
-            for (let i = -1; i <= 1; i++) {
-                const tent = this.add.rectangle(i * 5, 22 + Math.abs(i) * 3, 3, 12, cfg.skinColor).setOrigin(0.5, 0);
-                container.add(tent);
-                if (parts.tentacles) parts.tentacles.push(tent); else parts.tentacles = [tent];
-            }
-        }
-
-        container.setScale(1);
-        return { container, parts };
-    }
-
-    startIdleAnimation(bodyContainer, bodyParts, tweensArray) {
-        // Stop any existing idle tweens
-        tweensArray.forEach(t => t.remove());
-        tweensArray.length = 0;
-
-        // Gentle body sway
-        tweensArray.push(this.tweens.add({
-            targets: bodyContainer,
-            angle: { from: -1.5, to: 1.5 },
-            duration: 1800,
-            yoyo: true,
-            repeat: -1,
-            ease: 'Sine.easeInOut'
-        }));
-
-        // Subtle breathing (torso scale)
-        if (bodyParts.torso) {
-            tweensArray.push(this.tweens.add({
-                targets: bodyParts.torso,
-                scaleY: { from: 1.0, to: 1.04 },
-                duration: 1200,
-                yoyo: true,
-                repeat: -1,
-                ease: 'Sine.easeInOut'
-            }));
-        }
-
-        // Arm bob
-        if (bodyParts.frontArm) {
-            tweensArray.push(this.tweens.add({
-                targets: bodyParts.frontArm,
-                angle: { from: -3, to: 3 },
-                duration: 2000,
-                yoyo: true,
-                repeat: -1,
-                ease: 'Sine.easeInOut'
-            }));
-        }
-        if (bodyParts.backArm) {
-            tweensArray.push(this.tweens.add({
-                targets: bodyParts.backArm,
-                angle: { from: 2, to: -2 },
-                duration: 2200,
-                yoyo: true,
-                repeat: -1,
-                ease: 'Sine.easeInOut'
-            }));
-        }
-
-        // Tentacles wave (for squid)
-        if (bodyParts.tentacles) {
-            bodyParts.tentacles.forEach((t, i) => {
-                tweensArray.push(this.tweens.add({
-                    targets: t,
-                    angle: { from: -8, to: 8 },
-                    duration: 1000 + i * 200,
-                    yoyo: true,
-                    repeat: -1,
-                    ease: 'Sine.easeInOut'
-                }));
-            });
-        }
-    }
-
-    playAttackAnimation(bodyContainer, bodyParts, facingRight, onComplete) {
-        const dir = facingRight ? 1 : -1;
-
-        // Lunge forward
-        this.tweens.add({
-            targets: bodyContainer,
-            x: bodyContainer.x + 12 * dir,
-            duration: 100,
-            yoyo: true,
-            ease: 'Power2'
-        });
-
-        // Swing front arm
-        if (bodyParts.frontArm) {
-            this.tweens.add({
-                targets: bodyParts.frontArm,
-                angle: -45 * dir,
-                duration: 100,
-                yoyo: true,
-                ease: 'Power2'
-            });
-        }
-
-        // Weapon swing
-        if (bodyParts.weapon) {
-            this.tweens.add({
-                targets: bodyParts.weapon,
-                angle: -60 * dir,
-                duration: 120,
-                yoyo: true,
-                ease: 'Power2'
-            });
-        }
-
-        // Body tilt for emphasis
-        this.tweens.add({
-            targets: bodyContainer,
-            angle: 8 * dir,
-            duration: 100,
-            yoyo: true,
-            ease: 'Power2',
-            onComplete: () => {
-                if (onComplete) onComplete();
-            }
-        });
-    }
-
-    playHitAnimation(bodyContainer) {
-        // Flash red and shake when hit
-        const origX = bodyContainer.x;
-        this.tweens.add({
-            targets: bodyContainer,
-            x: origX - 4,
-            duration: 40,
-            yoyo: true,
-            repeat: 3,
-            ease: 'Linear',
-            onComplete: () => bodyContainer.setX(origX)
-        });
-
-        // Tint all children red briefly via alpha flash
-        const flash = this.add.rectangle(0, 10, 30, 50, 0xff0000, 0.4).setOrigin(0.5);
-        bodyContainer.add(flash);
-        this.tweens.add({
-            targets: flash,
-            alpha: 0,
-            duration: 250,
-            onComplete: () => flash.destroy()
-        });
-    }
-
     /** Play the warrior sprite attack animation, then return to idle. */
     playPlayerAttackAnim() {
         if (!this.playerSprite) return;
@@ -4903,35 +4645,30 @@ class Match3Scene extends Phaser.Scene {
         });
     }
 
-    /** Play an enemy's attack animation (sprite or procedural). */
+    /** Play an enemy's attack animation. */
     playEnemyAttackAnim(enemy) {
         if (!enemy || !enemy.alive) return;
         const bodyCfg = MONSTER_BODIES[enemy.bodyIndex];
-        if (enemy.enemySprite && bodyCfg.spriteKey) {
+        if (enemy.enemySprite) {
             const sk = bodyCfg.spriteKey;
             enemy.enemySprite.play(sk + '_attack');
             // Guinea Pig Lich fires an evil energy bolt at the hero when it attacks
             if (sk === 'guineapiglich') {
                 this.time.delayedCall(80, () => this.spawnEvilEnergyEffect(enemy));
             }
-        } else if (enemy.bodyContainer && enemy.bodyParts) {
-            this.playAttackAnimation(enemy.bodyContainer, enemy.bodyParts, bodyCfg.facingRight);
         }
     }
 
-    /** Play an enemy's hit reaction animation (sprite or procedural). */
+    /** Play an enemy's hit reaction animation. */
     playEnemyHitAnim(enemy) {
         if (!enemy || !enemy.alive) return;
         const bodyCfg = MONSTER_BODIES[enemy.bodyIndex];
-        if (enemy.enemySprite && bodyCfg.spriteKey) {
-            const sk = bodyCfg.spriteKey;
-            enemy.enemySprite.play(sk + '_hit');
+        if (enemy.enemySprite) {
+            enemy.enemySprite.play(bodyCfg.spriteKey + '_hit');
             enemy.enemySprite.setTint(0xff4444);
             this.time.delayedCall(200, () => {
                 if (enemy.enemySprite) enemy.enemySprite.clearTint();
             });
-        } else if (enemy.bodyContainer) {
-            this.playHitAnimation(enemy.bodyContainer);
         }
     }
 
@@ -4959,7 +4696,6 @@ class Match3Scene extends Phaser.Scene {
             }
         });
         this.hudContainer.add(this.playerSprite);
-        this.playerBodyContainer = this.playerSprite;  // alias for compatibility
         this.heroTitleText = this.add.text(leftCX, 140, `Hero (Lv. ${this.player.level})`, { fontSize: '17px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
         this.hudContainer.add(this.heroTitleText);
         // --- Energy Shield bar (above HP) ---
@@ -7816,10 +7552,6 @@ class Match3Scene extends Phaser.Scene {
         }
         if (enemy.healthText) enemy.healthText.setText(`0 / ${enemy.maxHealth}`);
 
-        // Stop this enemy's idle tweens
-        enemy.idleTweens.forEach(t => t.remove());
-        enemy.idleTweens.length = 0;
-
         if (enemy.enemySprite) {
             // Sprite-based enemy: play death animation then fade out
             const spriteKey = MONSTER_BODIES[enemy.bodyIndex].spriteKey;
@@ -7831,15 +7563,6 @@ class Match3Scene extends Phaser.Scene {
                     duration: 400,
                     ease: 'Power2'
                 });
-            });
-        } else if (enemy.bodyContainer) {
-            this.tweens.add({
-                targets: enemy.bodyContainer,
-                y: enemy.bodyContainer.y + 20,
-                angle: 90,
-                alpha: 0,
-                duration: 600,
-                ease: 'Power2',
             });
         }
 
@@ -7914,7 +7637,6 @@ class Match3Scene extends Phaser.Scene {
     }
 
     createGrid() {
-        console.log('Creating grid...');
         for (let y = 0; y < GRID_HEIGHT; y++) {
             this.grid[y] = [];
             for (let x = 0; x < GRID_WIDTH; x++) {
@@ -7925,12 +7647,9 @@ class Match3Scene extends Phaser.Scene {
                 this.grid[y][x] = type;
             }
         }
-        console.log('Grid created:', this.grid);
     }
 
     renderGrid() {
-        console.log('Rendering grid...');
-        
         // Clear existing sprites and board container children
         if (this.boardContainer) {
             this.boardContainer.removeAll(true);
@@ -7990,12 +7709,10 @@ class Match3Scene extends Phaser.Scene {
                 this.boardContainer.add(icon);
             }
         }
-        console.log('Grid rendered!');
     }
 
     handleDragStart(x, y) {
         if (this.isSwapping || this.isShowingEquipment) return;
-        console.log(`Drag start: ${x}, ${y}`);
         this.dragStart = { x, y };
         // Bring tile to front while dragging
         const tile = this.tileSprites[y][x];
@@ -8041,8 +7758,6 @@ class Match3Scene extends Phaser.Scene {
         const gridX = Math.floor((pointer.x - GRID_OFFSET_X) / TILE_SIZE);
         const gridY = Math.floor((pointer.y - GRID_OFFSET_Y) / TILE_SIZE);
 
-        console.log(`Drag end: pointer at grid (${gridX}, ${gridY}), started at (${this.dragStart.x}, ${this.dragStart.y})`);
-
         // Check if it's a valid grid position
         if (gridX < 0 || gridX >= GRID_WIDTH || gridY < 0 || gridY >= GRID_HEIGHT) {
             this.dragStart = null;
@@ -8054,7 +7769,6 @@ class Match3Scene extends Phaser.Scene {
 
         // Allow swap if the drag ends within a 1-tile radius (including diagonals and slightly off-adjacent drags)
         if ((dx <= 1 && dy <= 1) && (dx + dy > 0) && (dx + dy <= 2)) {
-            console.log('Less strict swap: swapping!');
             this.swapTiles(this.dragStart.x, this.dragStart.y, gridX, gridY);
         }
 
