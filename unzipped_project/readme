@@ -1,0 +1,102 @@
+# Match-3 RPG Game
+
+A simple match-3 tile-matching game built with Phaser 3 and JavaScript.
+
+## Features
+
+- **6x6 Grid**: A fully populated playing board with 6 different tile types
+- **Tile Swapping**: Click to select a tile, then click an adjacent tile to swap them
+- **Match Detection**: Automatically detects matches of 3 or more tiles in a row or column
+- **Gravity**: Tiles fall down when matches are cleared
+- **Cascading Matches**: Chain reactions when gravity causes new matches
+- **Score Tracking**: Points awarded for each matched tile (10 points per tile)
+- **Prevention of Starting Matches**: Initial grid generation prevents creating matches at the start
+
+## How to Play
+
+1. Open `index.html` in a web browser
+2. Click on a tile to select it (it will be highlighted in yellow)
+3. Click on an adjacent tile (up, down, left, or right) to swap them
+4. If the swap creates a match of 3 or more tiles of the same color:
+   - The matched tiles are removed
+   - Remaining tiles fall down due to gravity
+   - New tiles are generated at the top
+   - Your score increases by 10 points per cleared tile
+5. If no match is created, the swap is undone
+6. Keep making matches to increase your score!
+
+## Game Mechanics
+
+### Grid System
+- **Size**: 6x6 tiles
+- **Tile Size**: 64x64 pixels
+- **Tile Types**: 6 different colors representing different tile types
+
+### Match Detection
+- Matches require 3 or more consecutive tiles of the same type horizontally or vertically
+- Diagonal matches are not included (classic match-3 rules)
+
+### Gravity
+- When tiles are removed, tiles above fall down to fill empty spaces
+- Empty spaces at the top are filled with random new tiles
+- Cascading matches automatically trigger after gravity is applied
+
+### Scoring
+- Each tile cleared: 10 points
+- Combo matches (cascades): Each cascade is worth the sum of tiles in that cascade
+
+## File Structure
+
+```
+match3rpg/
+├── index.html    # HTML file with Phaser setup and styling
+├── game.js       # Main game logic and Phaser scene
+└── readme        # This file
+```
+
+## Technical Details
+
+- **Framework**: Phaser 3.55.2 (CDN)
+- **Language**: JavaScript (ES6)
+- **Grid Management**: 2D array with tile type indices
+- **Rendering**: Phaser Graphics API
+
+## Git Setup Note
+
+This repository has a Git LFS `pre-push` hook enabled. If pushes fail with a message about `git-lfs` not being found:
+
+1. Install Git LFS and initialize it:
+   - `git lfs install`
+2. Retry your push.
+
+If you are in a restricted dev container and cannot install packages, you can temporarily bypass hooks for that push:
+
+- `git push --no-verify`
+
+Use `--no-verify` only as a temporary workaround.
+
+## Key Classes and Methods
+
+### Match3Scene
+- `create()`: Initialize the scene and set up input
+- `createGrid()`: Generate random grid with validation
+- `drawGrid()`: Render tiles on canvas
+- `handlePointerDown()`: Handle tile selection and swapping
+- `swapTiles()`: Perform tile swap with validation
+- `findMatches()`: Detect horizontal and vertical matches
+- `clearMatches()`: Remove matched tiles and update score
+- `applyGravity()`: Handle tile falling and cascading
+- `updateTileSelection()`: Update visual feedback for selected tile
+
+### Utility Functions
+- `isValidPlacement()`: Ensure new tiles don't create immediate matches
+
+## Future Enhancements
+
+- Power-ups and special tiles
+- Difficulty levels
+- High score persistence
+- Sound effects and animations
+- Mobile touch support
+- Special match bonuses (4 in a row, 5 in a row, T-shapes, L-shapes)
+- Move limit or time limit modes
