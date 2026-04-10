@@ -1768,9 +1768,7 @@ class Match3Scene extends Phaser.Scene {
                                 );
                             }
                             if (dmg.isLightning) {
-                                const playerX = GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) * 0.25;
-                                const playerY = GRID_OFFSET_Y + (GRID_HEIGHT * TILE_SIZE) * 0.4;
-                                this.spawnLightningBolt(playerX, playerY, enemyTarget.pos.x, enemyTarget.pos.y);
+                                this.spawnLightningBolt(97, 90, enemyTarget.pos.x, enemyTarget.pos.y);
                             }
                             if (enemyTarget.health > 0) {
                                 this.playEnemyHitAnim(enemyTarget);
@@ -1780,7 +1778,6 @@ class Match3Scene extends Phaser.Scene {
                             // Check if the last enemy was just killed by this hit
                             if (this.allEnemiesDead() && !this.awaitingRewardChoice) {
                                 this.awaitingRewardChoice = true;
-                                this.stopAllParticleEffects();
                                 this.time.delayedCall(1500, () => this.showRewardScreen());
                                 this.isSwapping = true;
                             }
@@ -1882,7 +1879,6 @@ class Match3Scene extends Phaser.Scene {
         if (this.allEnemiesDead()) {
             if (!this.awaitingRewardChoice) {
                 this.awaitingRewardChoice = true;
-                this.stopAllParticleEffects();
                 this.time.delayedCall(1500, () => this.showRewardScreen());
             }
             this.isSwapping = true;
@@ -2569,8 +2565,8 @@ class Match3Scene extends Phaser.Scene {
 
     /** Spawns small glowing projectiles flying from the player toward each enemy target. */
     spawnMissilesEffect(targets) {
-        const fromX = GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) * 0.22;
-        const fromY = GRID_OFFSET_Y - 30;
+        const fromX = 97;  // hero body center X
+        const fromY = 90;  // hero body center Y (torso)
         targets.forEach((enemy, i) => {
             const delay = i * 160;
             const orb = this.add.circle(fromX, fromY, 5, 0xff88ff, 0.95).setDepth(1097);
@@ -2599,8 +2595,8 @@ class Match3Scene extends Phaser.Scene {
 
     /** Spawns arrow-line projectiles flying from the player to a single target. */
     spawnMultishotEffect(target, count) {
-        const fromX = GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) * 0.22;
-        const fromY = GRID_OFFSET_Y - 30;
+        const fromX = 97;  // hero body center X
+        const fromY = 90;  // hero body center Y (torso)
         for (let i = 0; i < count; i++) {
             const delay = i * 80;
             const offsetY = (i - (count - 1) / 2) * 10;
@@ -2639,8 +2635,8 @@ class Match3Scene extends Phaser.Scene {
 
     /** Duck and Roll: dash blur streaking toward the target then an impact flash. */
     spawnDuckRollEffect(target) {
-        const fromX = GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) * 0.22;
-        const fromY = GRID_OFFSET_Y - 20;
+        const fromX = 97;  // hero body center X
+        const fromY = 90;  // hero body center Y (torso)
         for (let i = 0; i < 4; i++) {
             const blur = this.add.rectangle(fromX + i * 18, fromY, 30, 10, 0x88eeff, 0.55 - i * 0.1)
                 .setOrigin(0.5).setDepth(1096);
@@ -2663,8 +2659,8 @@ class Match3Scene extends Phaser.Scene {
 
     /** Energy Beam: sustained glowing beam from player to enemy with impact burst. */
     spawnEnergyBeamEffect(target) {
-        const fromX = GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) * 0.25;
-        const fromY = GRID_OFFSET_Y - 30;
+        const fromX = 97;  // hero body center X
+        const fromY = 90;  // hero body center Y (torso)
         const toX = target.pos.x;
         const toY = target.pos.y - 10;
         const gfx = this.add.graphics().setDepth(1096);
@@ -2698,8 +2694,8 @@ class Match3Scene extends Phaser.Scene {
         const fromX = enemy.pos.x;
         // Use actual sprite position if available (accounts for spritePosYOffset)
         const fromY = (enemy.enemySprite ? enemy.enemySprite.y : enemy.pos.y) - 20;
-        const toX = GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) * 0.25;
-        const toY = GRID_OFFSET_Y - 30;
+        const toX = 97;   // hero body center X
+        const toY = 90;   // hero body center Y (torso)
 
         // Trailing dark-green orbs that streak toward the hero
         for (let k = 0; k < 10; k++) {
@@ -2769,8 +2765,8 @@ class Match3Scene extends Phaser.Scene {
             if (this.skillChargeFxContainer) this.skillChargeFxContainer.add(emb);
             this.tweens.add({
                 targets: emb,
-                x: GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) * 0.25 + Phaser.Math.Between(-14, 14),
-                y: GRID_OFFSET_Y - 38,
+                x: 97 + Phaser.Math.Between(-14, 14),
+                y: 90,
                 alpha: 0,
                 duration: 620,
                 ease: 'Quad.easeOut',
@@ -2800,8 +2796,8 @@ class Match3Scene extends Phaser.Scene {
 
     /** Cloak of Flames: fire burst radiating outward from the player. */
     spawnCloakCastEffect() {
-        const cx = GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) * 0.22;
-        const cy = GRID_OFFSET_Y - 30;
+        const cx = 97;  // hero body center X
+        const cy = 90;  // hero body center Y (torso)
         const icons = ['🔥', '🔥', '💥', '✨'];
         for (let i = 0; i < 14; i++) {
             const angle = (i / 14) * Math.PI * 2;
@@ -3953,10 +3949,21 @@ class Match3Scene extends Phaser.Scene {
                 if (!glow) return;
                 this.tweens.killTweensOf(glow);
                 glow.setScale(1);
+
+                // Kill any existing pulse tweens on the slot icon and frame
+                const icon = this.equipmentIconText && this.equipmentIconText[key];
+                const frame = this.equipmentSlotFrames && this.equipmentSlotFrames[key];
+                const shell = this.equipmentSlotShells && this.equipmentSlotShells[key];
+                if (icon) { this.tweens.killTweensOf(icon); icon.setScale(1); }
+                if (frame) { this.tweens.killTweensOf(frame); frame.setScale(1); }
+                if (shell) { this.tweens.killTweensOf(shell); shell.setScale(1); }
+
                 if (!this.equippedItems[key]) {
                     glow.setAlpha(1);
                     return;
                 }
+
+                // Pulse the outer glow
                 glow.setAlpha(0.5);
                 this.tweens.add({
                     targets: glow,
@@ -3968,6 +3975,20 @@ class Match3Scene extends Phaser.Scene {
                     repeat: -1,
                     ease: 'Sine.easeInOut'
                 });
+
+                // Pulse the item icon and inner frame for a clear visual beat
+                const pulseTargets = [icon, frame].filter(Boolean);
+                if (pulseTargets.length > 0) {
+                    this.tweens.add({
+                        targets: pulseTargets,
+                        scaleX: 1.1,
+                        scaleY: 1.1,
+                        duration: 900,
+                        yoyo: true,
+                        repeat: -1,
+                        ease: 'Sine.easeInOut'
+                    });
+                }
             });
         }
     }
