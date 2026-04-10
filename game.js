@@ -120,25 +120,26 @@ const ITEM_PREFIXES = [
     { name: 'Agile', stats: { dexterity: [1, 3] }, tags: ['dexterity'] },
     { name: 'Arcane', stats: { magic: [1, 3] }, tags: ['intelligence'] },
     { name: 'Deadeye', stats: { ranged: [1, 3] }, tags: ['dexterity'] },
-    { name: 'Stalwart', stats: { armor: [2, 5] }, tags: ['strength'] },
+    { name: 'Stalwart', stats: { armor: [2, 5] }, tags: ['strength'], noWeapon: true },
     { name: 'Vital', stats: { health: [5, 14] }, tags: [], weight: 3 },
     { name: 'Prosperous', stats: { magicFind: [3, 10] }, tags: [] },
     { name: 'Cruel', stats: { physical: [2, 6] }, tags: ['strength'] },
     { name: 'Runic', stats: { magic: [2, 6] }, tags: ['intelligence'] },
     { name: 'Sharpened', stats: { ranged: [1, 4], physical: [1, 2] }, tags: ['dexterity', 'strength'] },
-    { name: 'Fortified', stats: { armor: [3, 8], health: [3, 7] }, tags: ['strength'] },
+    { name: 'Fortified', stats: { armor: [3, 8], health: [3, 7] }, tags: ['strength'], noWeapon: true },
     { name: 'Vampiric', stats: { health: [4, 10], physical: [1, 2] }, tags: ['strength'] },
     { name: 'Gilded', stats: { magicFind: [4, 14] }, tags: [] },
-    { name: 'Nimble', stats: { ranged: [1, 3], evasion: [1, 2] }, tags: ['dexterity'] },
-    { name: 'Sorcerous', stats: { magic: [2, 5], energyShield: [1, 4] }, tags: ['intelligence'] },
-    { name: 'Warding', stats: { energyShield: [2, 5] }, tags: ['intelligence'] },
-    { name: 'Evasive',    stats: { evasion: [2, 5] },           tags: ['dexterity'] },
+    { name: 'Nimble', stats: { ranged: [1, 3], evasion: [1, 2] }, tags: ['dexterity'], noWeapon: true },
+    { name: 'Sorcerous', stats: { magic: [2, 5], energyShield: [1, 4] }, tags: ['intelligence'], noWeapon: true },
+    { name: 'Warding', stats: { energyShield: [2, 5] }, tags: ['intelligence'], noWeapon: true },
+    { name: 'Evasive',    stats: { evasion: [2, 5] },           tags: ['dexterity'], noWeapon: true },
     { name: 'Blazing',    stats: { fireDamage: [2, 6] },         tags: ['intelligence'] },
     { name: 'Shocking',   stats: { lightningDamage: [2, 6] },    tags: ['intelligence'] },
     { name: 'Glacial',    stats: { coldDamage: [2, 6] },         tags: ['intelligence'] },
     { name: 'Fireproof',  stats: { fireResistance: [3, 8] },     tags: [] },
     { name: 'Grounded',   stats: { lightningResistance: [3, 8] }, tags: [] },
-    { name: 'Insulated',  stats: { coldResistance: [3, 8] },     tags: [] }
+    { name: 'Insulated',  stats: { coldResistance: [3, 8] },     tags: [] },
+    { name: 'Mending',    stats: { lifeRegen: [1, 3] },           tags: [] }
 ];
 
 const ITEM_SUFFIXES = [
@@ -149,25 +150,26 @@ const ITEM_SUFFIXES = [
     { name: 'of Finesse', stats: { dexterity: [1, 3] }, tags: ['dexterity'] },
     { name: 'of Focus', stats: { magic: [1, 4] }, tags: ['intelligence'] },
     { name: 'of Precision', stats: { ranged: [1, 4] }, tags: ['dexterity'] },
-    { name: 'of Guarding', stats: { armor: [2, 5] }, tags: ['strength'] },
+    { name: 'of Guarding', stats: { armor: [2, 5] }, tags: ['strength'], noWeapon: true },
     { name: 'of Vitality', stats: { health: [6, 16] }, tags: [], weight: 3 },
     { name: 'of Fortune', stats: { magicFind: [4, 12] }, tags: [] },
     { name: 'of Carnage', stats: { physical: [2, 7] }, tags: ['strength'] },
     { name: 'of the Magi', stats: { magic: [2, 7] }, tags: ['intelligence'] },
     { name: 'of the Hawk', stats: { ranged: [2, 6] }, tags: ['dexterity'] },
-    { name: 'of the Fortress', stats: { armor: [3, 9], health: [3, 7] }, tags: ['strength'] },
+    { name: 'of the Fortress', stats: { armor: [3, 9], health: [3, 7] }, tags: ['strength'], noWeapon: true },
     { name: 'of Regeneration', stats: { health: [8, 20] }, tags: [], weight: 3 },
     { name: 'of Plunder', stats: { magicFind: [6, 16] }, tags: [] },
     { name: 'of Devastation', stats: { physical: [2, 5], ranged: [1, 3] }, tags: ['strength', 'dexterity'] },
-    { name: 'of the Archmage', stats: { magic: [2, 5], energyShield: [2, 5] }, tags: ['intelligence'] },
-    { name: 'of Reflexes', stats: { evasion: [2, 6] }, tags: ['dexterity'] },
-    { name: 'of Shielding',     stats: { energyShield: [2, 6] },        tags: ['intelligence'] },
+    { name: 'of the Archmage', stats: { magic: [2, 5], energyShield: [2, 5] }, tags: ['intelligence'], noWeapon: true },
+    { name: 'of Reflexes', stats: { evasion: [2, 6] }, tags: ['dexterity'], noWeapon: true },
+    { name: 'of Shielding',     stats: { energyShield: [2, 6] },        tags: ['intelligence'], noWeapon: true },
     { name: 'of Embers',         stats: { fireDamage: [2, 7] },           tags: ['intelligence'] },
     { name: 'of the Storm',      stats: { lightningDamage: [2, 7] },      tags: ['intelligence'] },
     { name: 'of Frost',          stats: { coldDamage: [2, 7] },           tags: ['intelligence'] },
     { name: 'of the Flame Ward', stats: { fireResistance: [4, 10] },      tags: [] },
     { name: 'of the Lightning Ward', stats: { lightningResistance: [4, 10] }, tags: [] },
-    { name: 'of the Frost Ward', stats: { coldResistance: [4, 10] },      tags: [] }
+    { name: 'of the Frost Ward', stats: { coldResistance: [4, 10] },      tags: [] },
+    { name: 'of Recovery',       stats: { lifeRegen: [2, 4] },            tags: [] }
 ];
 
 // ---------------------------------------------------------------------------
@@ -4000,6 +4002,7 @@ class Match3Scene extends Phaser.Scene {
             armor: 0,
             energyShield: 0,
             evasion: 0,
+            lifeRegen: 0,
             // Tile spawn bonus (gear-sourced, stacks with talents)
             redTileChance: 0, greenTileChance: 0, blueTileChance: 0,
             goldTileChance: 0, pinkTileChance: 0,
@@ -4173,21 +4176,24 @@ class Match3Scene extends Phaser.Scene {
         return ITEM_RARITIES[0];
     }
 
-    rollAffixes(pool, count, multiplier, usedNames, baseType) {
+    rollAffixes(pool, count, multiplier, usedNames, baseType, slotGroup) {
         const affixes = [];
+        const isWeapon = slotGroup === 'mainhand';
 
-        // Build weighted pool based on base type
+        // Build weighted pool based on base type; exclude noWeapon affixes from weapon slots
         const weightedPool = [];
         pool.forEach(affix => {
+            if (affix.noWeapon && isWeapon) return;
             const tags = affix.tags || [];
-            // Explicit weight overrides; matching base type gets 3x, neutral/mismatch gets 1x
+            // Explicit weight overrides; matching base type gets 5x, neutral/mismatch gets 1x
             const weight = affix.weight
                 ? affix.weight
-                : (baseType && tags.includes(baseType)) ? 3 : 1;
+                : (baseType && tags.includes(baseType)) ? 5 : 1;
             for (let i = 0; i < weight; i++) weightedPool.push(affix);
         });
 
-        while (affixes.length < count && usedNames.size < pool.length) {
+        const filteredPool = pool.filter(affix => !(affix.noWeapon && isWeapon));
+        while (affixes.length < count && usedNames.size < filteredPool.length) {
             const affix = Phaser.Utils.Array.GetRandom(weightedPool);
             if (!affix || usedNames.has(affix.name)) continue;
 
@@ -4275,8 +4281,8 @@ class Match3Scene extends Phaser.Scene {
         const suffixCount = Math.floor(rarity.affixes / 2);
         const usedNames = new Set();
 
-        const prefixes = this.rollAffixes(ITEM_PREFIXES, prefixCount, statMultiplier, usedNames, base.baseType || null);
-        const suffixes = this.rollAffixes(ITEM_SUFFIXES, suffixCount, statMultiplier, usedNames, base.baseType || null);
+        const prefixes = this.rollAffixes(ITEM_PREFIXES, prefixCount, statMultiplier, usedNames, base.baseType || null, base.slotGroup);
+        const suffixes = this.rollAffixes(ITEM_SUFFIXES, suffixCount, statMultiplier, usedNames, base.baseType || null, base.slotGroup);
         // Legendary items always get one extra exclusive affix
         const legendaryAffix = rarity.name === 'Legendary' ? this.rollLegendaryAffix(base.baseType || null, usedNames) : null;
 
@@ -4420,8 +4426,8 @@ class Match3Scene extends Phaser.Scene {
         const suffixCount = Math.floor(rarity.affixes / 2);
         const usedNames = new Set();
 
-        const prefixes = this.rollAffixes(ITEM_PREFIXES, prefixCount, statMultiplier, usedNames, base.baseType || null);
-        const suffixes = this.rollAffixes(ITEM_SUFFIXES, suffixCount, statMultiplier, usedNames, base.baseType || null);
+        const prefixes = this.rollAffixes(ITEM_PREFIXES, prefixCount, statMultiplier, usedNames, base.baseType || null, base.slotGroup);
+        const suffixes = this.rollAffixes(ITEM_SUFFIXES, suffixCount, statMultiplier, usedNames, base.baseType || null, base.slotGroup);
         // Legendary items always get one extra exclusive affix
         const legendaryAffix = rarity.name === 'Legendary' ? this.rollLegendaryAffix(base.baseType || null, usedNames) : null;
 
@@ -8552,6 +8558,12 @@ class Match3Scene extends Phaser.Scene {
         }
 
         this.player.health = Math.min(this.getMaxHealth(), this.player.health);
+
+        // Life regen affix: heal a flat amount each turn
+        if (gear.lifeRegen > 0) {
+            this.player.health = Math.min(this.getMaxHealth(), this.player.health + gear.lifeRegen);
+            this.addCombatLog(`💚 Life Regen: +${gear.lifeRegen} HP`, '#44ff99');
+        }
 
         // Stolen regenerating affix: heal 8% max HP after each turn
         const stolenForRegen = this.getStolenAffixBonuses();
