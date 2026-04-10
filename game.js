@@ -2356,6 +2356,128 @@ class Match3Scene extends Phaser.Scene {
         });
     }
 
+    /**
+     * Shattering burst when a tile is cleared.
+     * intensity 1 = 3-match (basic), 2 = 4-match (dramatic), 3 = 5/L/T (most dramatic).
+     */
+    spawnTileShatterEffect(worldX, worldY, color, intensity) {
+        const shardCount  = intensity === 3 ? 18 : intensity === 2 ? 12 : 7;
+        const spread      = intensity === 3 ? 100 : intensity === 2 ? 68 : 40;
+        const duration    = intensity === 3 ? 980 : intensity === 2 ? 760 : 560;
+        const shardBase   = intensity === 3 ? 13  : intensity === 2 ? 10 : 7;
+
+        // White flash — all intensities now get one, bigger and brighter at higher tiers
+        {
+            const flashAlpha = intensity === 3 ? 1.0 : intensity === 2 ? 0.85 : 0.55;
+            const flashScale = intensity === 3 ? 2.6 : intensity === 2 ? 1.9  : 1.45;
+            const flashDur   = intensity === 3 ? 420 : intensity === 2 ? 320  : 240;
+            const flash = this.add.rectangle(worldX, worldY, TILE_SIZE - 2, TILE_SIZE - 2, 0xffffff, flashAlpha)
+                .setDepth(1202);
+            this.tweens.add({
+                targets: flash,
+                alpha: 0,
+                scaleX: flashScale,
+                scaleY: flashScale,
+                duration: flashDur,
+                ease: 'Quad.easeOut',
+                onComplete: () => flash.destroy()
+            });
+        }
+
+        // Tile-colored inner glow pulse — all intensities
+        {
+            const glowAlpha = intensity === 3 ? 0.85 : intensity === 2 ? 0.65 : 0.45;
+            const glowScale = intensity === 3 ? 2.0  : intensity === 2 ? 1.55 : 1.2;
+            const glowDur   = intensity === 3 ? 360  : intensity === 2 ? 280  : 210;
+            const glow = this.add.rectangle(worldX, worldY, TILE_SIZE - 4, TILE_SIZE - 4, color, glowAlpha)
+                .setDepth(1201);
+            this.tweens.add({
+                targets: glow,
+                alpha: 0,
+                scaleX: glowScale,
+                scaleY: glowScale,
+                duration: glowDur,
+                ease: 'Cubic.easeOut',
+                onComplete: () => glow.destroy()
+            });
+        }
+
+        // Expanding ring(s) — 4+ matches get at least one ring, 5/L/T get three
+        const ringDefs = intensity === 3
+            ? [
+                { color: 0xffffff, stroke: 4, scaleTo: 5.5, alpha: 1.0,  dur: 820 },
+                { color,           stroke: 3, scaleTo: 4.0, alpha: 0.9,  dur: 700 },
+                { color: 0xffffff, stroke: 2, scaleTo: 2.8, alpha: 0.75, dur: 560 }
+              ]
+            : intensity === 2
+            ? [
+                { color: 0xffffff, stroke: 3, scaleTo: 4.0, alpha: 0.9, dur: 640 },
+                { color,           stroke: 2, scaleTo: 2.8, alpha: 0.75, dur: 520 }
+              ]
+            : [
+                { color,           stroke: 2, scaleTo: 2.4, alpha: 0.7, dur: 440 }
+              ];
+
+        ringDefs.forEach(rd => {
+            const ring = this.add.circle(worldX, worldY, 10, rd.color, 0)
+                .setStrokeStyle(rd.stroke, rd.color, rd.alpha)
+                .setDepth(1200);
+            this.tweens.add({
+                targets: ring,
+                scaleX: rd.scaleTo,
+                scaleY: rd.scaleTo,
+                alpha: 0,
+                duration: rd.dur,
+                ease: 'Cubic.easeOut',
+                onComplete: () => ring.destroy()
+            });
+        });
+
+        // Shards — mix of tile color and white for higher intensities
+        for (let i = 0; i < shardCount; i++) {
+            const baseAngle = (i / shardCount) * Math.PI * 2;
+            const jitter    = Phaser.Math.Between(-25, 25) * (Math.PI / 180);
+            const angle     = baseAngle + jitter;
+            const dist      = spread * (0.5 + Math.random() * 0.9);
+
+            const useWhite  = intensity >= 2 && Math.random() < 0.35;
+            const shardColor = useWhite ? 0xffffff : color;
+            const w = shardBase * (0.6 + Math.random() * 1.1);
+            const h = shardBase * (0.3 + Math.random() * 0.8);
+            const shard = this.add.rectangle(worldX, worldY, w, h, shardColor, 1.0)
+                .setDepth(1198)
+                .setRotation(Math.random() * Math.PI * 2);
+
+            this.tweens.add({
+                targets: shard,
+                x: worldX + Math.cos(angle) * dist,
+                y: worldY + Math.sin(angle) * dist,
+                rotation: shard.rotation + Phaser.Math.Between(-4, 4) * Math.PI,
+                scaleX: 0.05,
+                scaleY: 0.05,
+                alpha: 0,
+                duration: duration * (0.6 + Math.random() * 0.6),
+                ease: 'Quad.easeOut',
+                onComplete: () => shard.destroy()
+            });
+        }
+
+        // Central sparkle
+        const sparkleScale = intensity === 3 ? 3.8 : intensity === 2 ? 2.6 : 1.8;
+        const sparkleDur   = intensity === 3 ? 520 : intensity === 2 ? 400 : 300;
+        const sparkle = this.add.circle(worldX, worldY, shardBase * 1.1, 0xffffff, 1.0)
+            .setDepth(1203);
+        this.tweens.add({
+            targets: sparkle,
+            scaleX: sparkleScale,
+            scaleY: sparkleScale,
+            alpha: 0,
+            duration: sparkleDur,
+            ease: 'Cubic.easeOut',
+            onComplete: () => sparkle.destroy()
+        });
+    }
+
     /** Draws a jagged lightning bolt from (fromX,fromY) to (toX,toY) and fades it. */
     spawnLightningBolt(fromX, fromY, toX, toY) {
         const segments = 7;
@@ -8022,6 +8144,26 @@ class Match3Scene extends Phaser.Scene {
         const matchedTilesForEffects = [];
         const comboChargeSources = [];
 
+        // --- Build per-tile shatter intensity map ---
+        // intensity 1 = 3-match, 2 = 4-match, 3 = 5/L/T-match
+        const tileShatterIntensity = {};
+        matches.forEach(m => { tileShatterIntensity[m] = 1; });
+        comboRuns.forEach(run => {
+            if (run.length >= 4) {
+                const lvl = run.length >= 5 ? 3 : 2;
+                run.tiles.forEach(t => {
+                    const k = `${t.x},${t.y}`;
+                    if ((tileShatterIntensity[k] || 0) < lvl) tileShatterIntensity[k] = lvl;
+                });
+            }
+        });
+        lShapeCombos.forEach(shape => {
+            shape.tiles.forEach(t => { tileShatterIntensity[`${t.x},${t.y}`] = 3; });
+        });
+        tCrossShapes.forEach(shape => {
+            shape.tiles.forEach(t => { tileShatterIntensity[`${t.x},${t.y}`] = 3; });
+        });
+
         lShapeCombos.forEach((shape, index) => {
             this.spawnLShapeMatchEffect(shape, index * 90);
             this.addCombatLog('L-Shape Match!', this.toHexColor(shape.color || 0xffffff));
@@ -8031,6 +8173,13 @@ class Match3Scene extends Phaser.Scene {
         matches.forEach(match => {
             const [x, y] = match.split(',').map(Number);
             const tileType = this.grid[y][x];
+
+            // Shatter animation for this tile
+            const shatterWX = GRID_OFFSET_X + x * TILE_SIZE + TILE_SIZE / 2;
+            const shatterWY = GRID_OFFSET_Y + y * TILE_SIZE + TILE_SIZE / 2;
+            const shatterColor = (tileType >= 0 && TILE_TYPES[tileType]) ? TILE_TYPES[tileType].color : 0xffffff;
+            this.spawnTileShatterEffect(shatterWX, shatterWY, shatterColor, tileShatterIntensity[match] || 1);
+
             if (tileType >= 0 && TILE_TYPES[tileType]) {
                 const effect = TILE_TYPES[tileType].effect;
                 matchedTilesForEffects.push({
