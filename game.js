@@ -12,7 +12,7 @@ const TILE_TYPES = [
     { name: 'gold', color: 0xffff00, icon: '🪙', effect: 'gold' }
 ];
 
-const MONSTER_NAMES = ['Red Squirrel', 'Pig Goblin', 'Orc Pig', 'Sloth Troll', 'Bunny Warlock', 'Hamster Skeleton', 'Guinea Pig Lich', 'Raccoon Bandit'];
+const MONSTER_NAMES = ['Kobold', 'Goblin', 'Orc', 'Troll', 'Warlock', 'Skeleton', 'Lich', 'Bandit'];
 
 const MONSTER_BODIES = [
     // Red Squirrel (index 0)
@@ -38,7 +38,7 @@ const MONSTER_BODIES = [
       spriteOriginY: 1, spritePosYOffset: 84, spriteDisplayW: 182, spriteDisplayH: 149,
       innate: [{ id: 'cursedAura', icon: '☠️', name: 'Cursed Aura', desc: 'Radiates dark energy that saps the hero\'s life force each turn.' }] },
     // Raccoon Bandit (index 7)
-    { spriteKey: 'raccoonbandit', spriteDisplayW: 155, spriteDisplayH: 130,
+    { spriteKey: 'raccoonbandit', spriteDisplayW: 155, spriteDisplayH: 130, spriteOriginX: 0.62,
       innate: [{ id: 'goldTheft', icon: '🪙', name: 'Pickpocket', desc: 'Steals 5% of the hero\'s gold each time it attacks.' }] }
 ];
 
@@ -1283,10 +1283,12 @@ class Match3Scene extends Phaser.Scene {
             let enemySprite = null;
 
             if (bodyCfg.spriteKey) {
-                // Support per-sprite origin and Y-offset for animation stabilisation
+                // Support per-sprite origin and offsets for animation stabilisation
+                const originX = bodyCfg.spriteOriginX !== undefined ? bodyCfg.spriteOriginX : 0.5;
                 const originY = bodyCfg.spriteOriginY !== undefined ? bodyCfg.spriteOriginY : 0.5;
+                const effectiveX = pos.x + (bodyCfg.spritePosXOffset || 0);
                 const effectiveY = pos.y + (bodyCfg.spritePosYOffset || 0);
-                enemySprite = this.add.sprite(pos.x, effectiveY, bodyCfg.spriteKey).setOrigin(0.5, originY);
+                enemySprite = this.add.sprite(effectiveX, effectiveY, bodyCfg.spriteKey).setOrigin(originX, originY);
                 if (bodyCfg.spriteDisplayW) {
                     // Fixed display size locks the sprite at a stable size regardless of frame content
                     enemySprite.setDisplaySize(
