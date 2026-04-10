@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Match-3 RPG</title>
+    <script>
+        // Polyfill for Performance User Timing API — required by Phaser 3.55 in some
+        // browser/WebView environments where performance.now exists but mark/clearMarks do not.
+        (function () {
+            if (typeof performance !== 'undefined') {
+                if (typeof performance.mark !== 'function')         { performance.mark = function () {}; }
+                if (typeof performance.clearMarks !== 'function')   { performance.clearMarks = function () {}; }
+                if (typeof performance.measure !== 'function')      { performance.measure = function () {}; }
+                if (typeof performance.clearMeasures !== 'function'){ performance.clearMeasures = function () {}; }
+            }
+            if (typeof window !== 'undefined' && typeof window.mgt !== 'object') {
+                window.mgt = {};
+            }
+            if (typeof window !== 'undefined' && window.mgt && typeof window.mgt.clearMarks !== 'function') {
+                window.mgt.clearMarks = function () {};
+            }
+        }());
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body {
+            margin: 0;
+            padding: 0;
+            background-color: #111;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            touch-action: none;
+            font-family: Arial, sans-serif;
+        }
+        #score {
+            display: none;
+        }
+        canvas {
+            display: block;
+            margin: 0 auto;
+            touch-action: none;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+        }
+    </style>
+</head>
+<body>
+    <div id="score">Score: 0</div>
+    <script>
+        const gameScript = document.createElement('script');
+        gameScript.src = `game.js?v=${Date.now()}`;
+        document.body.appendChild(gameScript);
+    </script>
+</body>
+</html>
