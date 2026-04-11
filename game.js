@@ -2893,8 +2893,8 @@ class Match3Scene extends Phaser.Scene {
             let longPressTriggered = false;
 
             bg.on('pointerdown', (pointer) => {
-                // If a skill gem is being dragged, do not start long press
-                if (this.armedEquipGem) return;
+                // If gem inventory is open, do not start long press
+                if (this.gemInventoryPopup && this.gemInventoryPopup.visible) return;
                 pressStartTime = Date.now();
                 longPressTriggered = false;
                 const slotIndex = i;
@@ -2909,8 +2909,8 @@ class Match3Scene extends Phaser.Scene {
                     this.skillLongPressTimer.remove(false);
                     this.skillLongPressTimer = null;
                 }
-                // If a skill gem is being dragged, do not activate or show popup
-                if (this.armedEquipGem) return;
+                // If gem inventory is open, do not activate or show popup
+                if (this.gemInventoryPopup && this.gemInventoryPopup.visible) return;
                 if (!longPressTriggered) {
                     this.activateSkillSlot(i);
                 } else {
@@ -3489,8 +3489,8 @@ class Match3Scene extends Phaser.Scene {
                 this.selectedGemLabel.setText(`Equip Mode: ${display.name} (${display.typeLabel})`);
                 this.selectedGemLabel.setColor('#fff07a');
             } else if (!this.selectedSkillGem) {
-                this.selectedGemLabel.setText('Selected: none');
-                this.selectedGemLabel.setColor('#bbbbbb');
+                this.selectedGemLabel.setText('Tap gem to swap  •  Hold for stats');
+                this.selectedGemLabel.setColor('#888888');
             } else {
                 const display = this.getSkillGemDisplay(this.selectedSkillGem);
                 this.selectedGemLabel.setText(`Selected: ${display.name} (${display.typeLabel})`);
@@ -6137,8 +6137,11 @@ class Match3Scene extends Phaser.Scene {
         });
     }
 
-    openGemInventoryPopup() {
+    openGemInventoryPopup(gemType = 'active', slotIndex = 0, socketIndex = -1) {
         if (!this.gemInventoryPopup) return;
+        this._gemInvType = gemType || 'active';
+        this._gemInvTargetSlot = slotIndex;
+        this._gemInvTargetSocket = socketIndex;
         this.gemInventoryPage = 0;
         this.refreshGemInventoryPopup();
         this.gemInventoryPopup.setVisible(true);
@@ -6150,15 +6153,34 @@ class Match3Scene extends Phaser.Scene {
 
     refreshGemInventoryPopup() {
         if (!this.gemInventoryGridCells) return;
+        const gemType = this._gemInvType || 'active';
+        const slotIndex = this._gemInvTargetSlot !== undefined ? this._gemInvTargetSlot : 0;
+        const socketIndex = this._gemInvTargetSocket !== undefined ? this._gemInvTargetSocket : -1;
+
+        // Update title
+        if (this.gemInvTitleLabel) {
+            this.gemInvTitleLabel.setText(gemType === 'active' ? 'Skill Gems' : 'Support Gems');
+        }
+
+        // Filter gems by type
+        const filteredGems = this.skillsInventoryGems.filter(g => g.type === gemType);
+
         const pageSize = this._gemInvPageSize || 20;
         const page = this.gemInventoryPage || 0;
         const start = page * pageSize;
-        const gems = this.skillsInventoryGems;
-        const maxPage = Math.max(0, Math.ceil(gems.length / pageSize) - 1);
+        const maxPage = Math.max(0, Math.ceil(filteredGems.length / pageSize) - 1);
         const cellImgSize = this._invCellImageSize || 50;
 
+        // Remove Gem button: visible only for support when that socket has a gem
+        if (this.gemInvRemoveBtn) {
+            const loadout = this.playerSkills[slotIndex];
+            const socketOccupied = gemType === 'support' && socketIndex >= 0
+                && loadout && loadout.supportIds && loadout.supportIds[socketIndex] != null;
+            this.gemInvRemoveBtn.setVisible(socketOccupied);
+        }
+
         this.gemInventoryGridCells.forEach((cell, idx) => {
-            const gem = gems[start + idx] || null;
+            const gem = filteredGems[start + idx] || null;
             if (!gem) {
                 cell.cellBg.setVisible(false);
                 cell.cellImage.setVisible(false);
@@ -6181,21 +6203,23 @@ class Match3Scene extends Phaser.Scene {
                 cell.cellIcon.setVisible(true);
             }
             cell.cellName.setText(display.name);
-
-            const isArmed = this.armedEquipGem
-                && this.armedEquipGem.type === gem.type
-                && this.armedEquipGem.id === gem.id;
-            cell.cellBg.setStrokeStyle(2, isArmed ? 0xfff07a : 0x2a3d50, 1);
-            cell.cellBg.setFillStyle(isArmed ? 0x38321a : 0x141e2a, 1);
+            cell.cellBg.setStrokeStyle(2, 0x2a3d50, 1);
+            cell.cellBg.setFillStyle(0x141e2a, 1);
 
             cell.cellBg.removeAllListeners('pointerup');
             cell.cellBg.on('pointerup', () => {
-                this.openSkillGemPopup(gem, start + idx);
+                if (gemType === 'active') {
+                    this.equipGemToActiveSlot(slotIndex, gem);
+                } else {
+                    this.equipGemToSupportSlot(slotIndex, socketIndex, gem);
+                }
+                this.closeGemInventoryPopup();
+                this.refreshSkillsScreenUI();
             });
         });
 
         if (this.gemInvCountLabel) {
-            this.gemInvCountLabel.setText(`${gems.length} gem(s) in inventory`);
+            this.gemInvCountLabel.setText(`${filteredGems.length} gem(s)`);
         }
         if (this.gemInvPageLabel) {
             this.gemInvPageLabel.setText(`Page ${page + 1} / ${maxPage + 1}`);
@@ -6217,7 +6241,7 @@ class Match3Scene extends Phaser.Scene {
             color: '#ffd56b',
             fontStyle: 'bold'
         }).setOrigin(0.5);
-        const subtitle = this.add.text(width / 2, 70, 'Tap a socket to equip or inspect. Select a gem first.', {
+        const subtitle = this.add.text(width / 2, 70, 'Tap skill gem to switch • Hold for info • Tap socket for support', {
             fontSize: '12px',
             color: '#bfbfbf'
         }).setOrigin(0.5);
@@ -6308,14 +6332,7 @@ class Match3Scene extends Phaser.Scene {
                 socketImage.setDisplaySize(supportRadius * 2 + 2, supportRadius * 2 + 2);
 
                 socketBg.on('pointerup', () => {
-                    const loadout = this.playerSkills[slotIndex];
-                    const supportId = loadout && loadout.supportIds ? loadout.supportIds[socketIndex] : null;
-                    const supportGem = this.getSupportGemById(supportId);
-                    if (supportGem) {
-                        this.openSupportGemPopup(supportGem, slotIndex, socketIndex);
-                    } else {
-                        this.equipSelectedGemToSupportSlot(slotIndex, socketIndex);
-                    }
+                    this.openGemInventoryPopup('support', slotIndex, socketIndex);
                 });
 
                 supportSockets.push({
@@ -6327,13 +6344,28 @@ class Match3Scene extends Phaser.Scene {
                 this.skillsScreenGroup.add([socketBg, socketText, socketImage]);
             }
 
-            cardBg.on('pointerup', () => {
-                if (this.armedEquipGem) {
-                    this.equipSelectedGemToActiveSlot(slotIndex);
-                } else {
-                    this.showSkillInfoPopup(slotIndex, true);
-                }
-            });
+            {
+                let mainLpTimer = null;
+                let mainLpFired = false;
+                cardBg.on('pointerdown', () => {
+                    mainLpFired = false;
+                    mainLpTimer = this.time.delayedCall(500, () => {
+                        mainLpFired = true;
+                        this.showSkillInfoPopup(slotIndex, true);
+                    });
+                });
+                cardBg.on('pointerup', () => {
+                    if (mainLpTimer) { mainLpTimer.remove(false); mainLpTimer = null; }
+                    if (!mainLpFired) {
+                        this.openGemInventoryPopup('active', slotIndex);
+                    } else {
+                        if (this.skillInfoPopup) this.skillInfoPopup.setVisible(false);
+                    }
+                });
+                cardBg.on('pointerout', () => {
+                    if (mainLpTimer) { mainLpTimer.remove(false); mainLpTimer = null; }
+                });
+            }
 
             this.skillsActiveSlotUI.push({
                 cardBg,
@@ -6401,16 +6433,7 @@ class Match3Scene extends Phaser.Scene {
             this.skillsGemModal.setVisible(true);
         };
 
-        // --- Gem Inventory Button ---
-        const gemInvBtn = this.add.text(width / 2, height - 26, 'Gem Inventory', {
-            fontSize: '16px',
-            color: '#111111',
-            backgroundColor: '#7ee8ff',
-            fontStyle: 'bold',
-            padding: { left: 18, right: 18, top: 7, bottom: 7 }
-        }).setOrigin(0.5, 1).setInteractive({ useHandCursor: true });
-        gemInvBtn.on('pointerup', () => this.openGemInventoryPopup());
-        this.skillsScreenGroup.add(gemInvBtn);
+        // (Gem Inventory Button removed — inventory opens via slot clicks)
 
         // --- Gem Inventory Popup (modeled after item inventory) ---
         // 5 cols × 4 rows = 20 gems per page
@@ -6435,9 +6458,27 @@ class Match3Scene extends Phaser.Scene {
             .setStrokeStyle(2, 0x336688)
             .setInteractive();  // absorbs clicks inside card
 
-        const invTitle = this.add.text(width / 2, invCardCenterY - invCardHalfH + 18, 'Gem Inventory', {
+        this.gemInvTitleLabel = this.add.text(width / 2, invCardCenterY - invCardHalfH + 18, 'Skill Gems', {
             fontSize: '18px', color: '#7ee8ff', fontStyle: 'bold'
         }).setOrigin(0.5);
+        const invTitle = this.gemInvTitleLabel;
+
+        // Remove Gem button — shown only for support inventory when socket is occupied
+        this.gemInvRemoveBtn = this.add.text(18, invCardCenterY - invCardHalfH + 18, 'Remove Gem', {
+            fontSize: '12px', color: '#111111', backgroundColor: '#ffb366',
+            padding: { left: 6, right: 6, top: 3, bottom: 3 }
+        }).setOrigin(0, 0.5).setVisible(false).setInteractive({ useHandCursor: true });
+        this.gemInvRemoveBtn.on('pointerup', () => {
+            const si = this._gemInvTargetSlot !== undefined ? this._gemInvTargetSlot : 0;
+            const so = this._gemInvTargetSocket !== undefined ? this._gemInvTargetSocket : -1;
+            if (so >= 0 && this.playerSkills[si] && this.playerSkills[si].supportIds) {
+                this.playerSkills[si].supportIds[so] = null;
+                this.updateSkillBarUI();
+                this.addCombatLog(`Removed support gem from Skill ${si + 1} socket ${so + 1}`, '#ffb366');
+            }
+            this.closeGemInventoryPopup();
+            this.refreshSkillsScreenUI();
+        });
         const invCloseBtn = this.add.text(width - 18, invCardCenterY - invCardHalfH + 18, '✕', {
             fontSize: '16px', color: '#ffffff', backgroundColor: '#443333',
             padding: { left: 6, right: 6, top: 3, bottom: 3 }
@@ -6494,7 +6535,9 @@ class Match3Scene extends Phaser.Scene {
             }
         });
         this.gemInvNextBtn.on('pointerup', () => {
-            const maxPage = Math.max(0, Math.ceil(this.skillsInventoryGems.length / this._gemInvPageSize) - 1);
+            const gemType = this._gemInvType || 'active';
+            const filteredGems = this.skillsInventoryGems.filter(g => g.type === gemType);
+            const maxPage = Math.max(0, Math.ceil(filteredGems.length / this._gemInvPageSize) - 1);
             if (this.gemInventoryPage < maxPage) {
                 this.gemInventoryPage++;
                 this.refreshGemInventoryPopup();
@@ -6507,7 +6550,7 @@ class Match3Scene extends Phaser.Scene {
 
         this.gemInventoryPopup = this.add.container(0, 0, [
             invOverlay, invCard, invTitle, invCloseBtn,
-            this.gemInvCountLabel,
+            this.gemInvCountLabel, this.gemInvRemoveBtn,
             ...invGridCellObjs,
             this.gemInvPrevBtn, this.gemInvNextBtn, this.gemInvPageLabel
         ]).setVisible(false);
