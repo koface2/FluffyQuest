@@ -169,7 +169,11 @@ const ITEM_SUFFIXES = [
     { name: 'of the Flame Ward', stats: { fireResistance: [4, 10] },      tags: [] },
     { name: 'of the Lightning Ward', stats: { lightningResistance: [4, 10] }, tags: [] },
     { name: 'of the Frost Ward', stats: { coldResistance: [4, 10] },      tags: [] },
-    { name: 'of Recovery',       stats: { lifeRegen: [2, 4] },            tags: [] }
+    { name: 'of Recovery',       stats: { lifeRegen: [2, 4] },            tags: [] },
+    { name: 'of Leech',          stats: { leech: [5, 12] },               tags: [], allowedSlots: ['mainhand', 'ring', 'necklace'] },
+    { name: 'of Scorching',      stats: { fireDamage: [2, 7] },            tags: [], allowedSlots: ['mainhand', 'ring', 'necklace'] },
+    { name: 'of the Tempest',    stats: { lightningDamage: [2, 7] },       tags: [], allowedSlots: ['mainhand', 'ring', 'necklace'] },
+    { name: 'of Permafrost',     stats: { coldDamage: [2, 7] },            tags: [], allowedSlots: ['mainhand', 'ring', 'necklace'] }
 ];
 
 // ---------------------------------------------------------------------------
@@ -1128,6 +1132,16 @@ class Match3Scene extends Phaser.Scene {
         const reducedAmount = hasToughHide ? Math.ceil(amount * 0.75) : amount;
         const actual = Math.max(0, reducedAmount);
         enemy.health = Math.max(0, enemy.health - actual);
+        // Leech: heal player for a percentage of damage dealt
+        if (actual > 0) {
+            const gear = this.getEquippedStatTotals();
+            if (gear.leech > 0) {
+                const leechHeal = Math.max(1, Math.round(actual * gear.leech / 100));
+                this.player.health = Math.min(this.getMaxHealth(), this.player.health + leechHeal);
+                const px = GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) * 0.25;
+                this.showCombatMessage(`🩸+${leechHeal}`, '#ff88cc', px, GRID_OFFSET_Y - 30);
+            }
+        }
         if (actual > 0 && enemy.affixes && enemy.affixes.some(a => a.id === 'thorns')) {
             const reflected = Math.max(1, Math.round(actual * 0.08));
             this.player.health = Math.max(0, this.player.health - reflected);
@@ -1269,9 +1283,12 @@ class Match3Scene extends Phaser.Scene {
             const baseName = MONSTER_NAMES[monsterIndex];
             const bodyCfg = MONSTER_BODIES[monsterIndex];
 
-            // Roll rarity — first boss encounter (battle 7) is Normal; repeat boss encounters are Legendary; battle 1 always Normal for tutorial
+            // Roll rarity — first boss encounter (battle 7) is Normal; subsequent Lich appearances escalate through Magic/Rare/Legendary; battle 1 always Normal for tutorial
             const rarity = bodyCfg.isBoss
-                ? (battleNumber === 7 ? ENEMY_RARITIES[0] : ENEMY_RARITIES[3])
+                ? (battleNumber === 7  ? ENEMY_RARITIES[0]
+                :  battleNumber === 14 ? ENEMY_RARITIES[1]
+                :  battleNumber === 21 ? ENEMY_RARITIES[2]
+                :                        ENEMY_RARITIES[3])
                 : (battleNumber === 1) ? ENEMY_RARITIES[0] : this.rollEnemyRarity(battleNumber);
             const affixes = this.rollEnemyAffixes(rarity);
 
@@ -4008,7 +4025,8 @@ class Match3Scene extends Phaser.Scene {
             lightningResistance: 'Lightning Res',
             coldDamage: 'Cold Dam',
             fireDamage: 'Fire Dam',
-            lightningDamage: 'Lightning Dam'
+            lightningDamage: 'Lightning Dam',
+            leech: 'Life Leech'
         };
         return labels[stat] || stat.charAt(0).toUpperCase() + stat.slice(1);
     }
@@ -4024,6 +4042,7 @@ class Match3Scene extends Phaser.Scene {
             energyShield: 0,
             evasion: 0,
             lifeRegen: 0,
+            leech: 0,
             // Tile spawn bonus (gear-sourced, stacks with talents)
             redTileChance: 0, greenTileChance: 0, blueTileChance: 0,
             goldTileChance: 0, pinkTileChance: 0,
@@ -4201,10 +4220,16 @@ class Match3Scene extends Phaser.Scene {
         const affixes = [];
         const isWeapon = slotGroup === 'mainhand';
 
-        // Build weighted pool based on base type; exclude noWeapon affixes from weapon slots
+        const slotAllowed = (affix) => {
+            if (affix.noWeapon && isWeapon) return false;
+            if (affix.allowedSlots && !affix.allowedSlots.includes(slotGroup)) return false;
+            return true;
+        };
+
+        // Build weighted pool based on base type; apply slot restrictions
         const weightedPool = [];
         pool.forEach(affix => {
-            if (affix.noWeapon && isWeapon) return;
+            if (!slotAllowed(affix)) return;
             const tags = affix.tags || [];
             // Explicit weight overrides; matching base type gets 5x, neutral/mismatch gets 1x
             const weight = affix.weight
@@ -4213,7 +4238,7 @@ class Match3Scene extends Phaser.Scene {
             for (let i = 0; i < weight; i++) weightedPool.push(affix);
         });
 
-        const filteredPool = pool.filter(affix => !(affix.noWeapon && isWeapon));
+        const filteredPool = pool.filter(affix => slotAllowed(affix));
         while (affixes.length < count && usedNames.size < filteredPool.length) {
             const affix = Phaser.Utils.Array.GetRandom(weightedPool);
             if (!affix || usedNames.has(affix.name)) continue;
