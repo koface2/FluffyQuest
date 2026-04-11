@@ -2884,7 +2884,7 @@ class Match3Scene extends Phaser.Scene {
 
             // Skill icon text fallback (emoji for non-image skills)
             const skillIconText = this.add.text(centerX, barY, '', {
-                fontSize: '32px'
+                fontSize: '38px'
             }).setOrigin(0.5).setVisible(false);
 
             // Invisible interactive hitbox on top
@@ -2894,14 +2894,14 @@ class Match3Scene extends Phaser.Scene {
 
             // Skill name label below icon
             const nameLabel = this.add.text(centerX, barY + iconRadius + 8, '', {
-                fontSize: '12px',
+                fontSize: '16px',
                 color: '#cccccc',
                 fontStyle: 'bold'
             }).setOrigin(0.5);
 
             // Charge text below name
-            const threshold = this.add.text(centerX, barY + iconRadius + 28, '', {
-                fontSize: '11px',
+            const threshold = this.add.text(centerX, barY + iconRadius + 30, '', {
+                fontSize: '13px',
                 color: '#d5d5d5'
             }).setOrigin(0.5);
 
@@ -3292,6 +3292,29 @@ class Match3Scene extends Phaser.Scene {
         }
     }
 
+    showSupportGemInfoPopup(gem) {
+        if (!gem || !this.skillsGemModal) return;
+        const display = this.getSkillGemDisplay(gem);
+        const description = this.getSkillGemDescription(gem);
+        if (this.skillsGemModalTitle) this.skillsGemModalTitle.setText('Support Gem');
+        if (display.imageKey && this.skillsGemModalIconImage) {
+            this.skillsGemModalIconImage.setTexture(display.imageKey);
+            this.skillsGemModalIconImage.setDisplaySize(56, 56);
+            this.skillsGemModalIconImage.setVisible(true);
+            if (this.skillsGemModalIcon) this.skillsGemModalIcon.setVisible(false);
+        } else {
+            if (this.skillsGemModalIcon) { this.skillsGemModalIcon.setText(display.icon); this.skillsGemModalIcon.setVisible(true); }
+            if (this.skillsGemModalIconImage) this.skillsGemModalIconImage.setVisible(false);
+        }
+        if (this.skillsGemModalName) this.skillsGemModalName.setText(display.name);
+        if (this.skillsGemModalType) this.skillsGemModalType.setText('Support Gem');
+        if (this.skillsGemModalDesc) this.skillsGemModalDesc.setText(description);
+        if (this.skillsGemModalEquipBtn) this.skillsGemModalEquipBtn.setVisible(false);
+        if (this.skillsGemModalDiscardBtn) this.skillsGemModalDiscardBtn.setVisible(false);
+        if (this.skillsGemModalUnequipBtn) this.skillsGemModalUnequipBtn.setVisible(false);
+        this.skillsGemModal.setVisible(true);
+    }
+
     equipSelectedGemFromPopup() {
         if (!this.selectedSkillGem) return;
         const display = this.getSkillGemDisplay(this.selectedSkillGem);
@@ -3486,6 +3509,9 @@ class Match3Scene extends Phaser.Scene {
                 }
                 if (socketUI.connector) {
                     socketUI.connector.setStrokeStyle(1, isReady ? borderColor : 0x8b8b8b, isReady ? 0.95 : 0.65);
+                }
+                if (socketUI.socketNameText) {
+                    socketUI.socketNameText.setText(supportGem ? supportGem.name : '');
                 }
             });
 
@@ -6231,16 +6257,40 @@ class Match3Scene extends Phaser.Scene {
             cell.cellBg.setStrokeStyle(2, 0x2a3d50, 1);
             cell.cellBg.setFillStyle(0x141e2a, 1);
 
+            cell.cellBg.removeAllListeners('pointerdown');
             cell.cellBg.removeAllListeners('pointerup');
-            cell.cellBg.on('pointerup', () => {
-                if (gemType === 'active') {
+            cell.cellBg.removeAllListeners('pointerout');
+            if (gemType === 'support') {
+                let cellLpTimer = null;
+                let cellLpFired = false;
+                cell.cellBg.on('pointerdown', () => {
+                    cellLpFired = false;
+                    cellLpTimer = this.time.delayedCall(500, () => {
+                        cellLpFired = true;
+                        this.showSupportGemInfoPopup(gem);
+                    });
+                });
+                cell.cellBg.on('pointerup', () => {
+                    if (cellLpTimer) { cellLpTimer.remove(false); cellLpTimer = null; }
+                    if (cellLpFired) {
+                        cellLpFired = false;
+                        if (this.skillsGemModal) this.skillsGemModal.setVisible(false);
+                    } else {
+                        this.equipGemToSupportSlot(slotIndex, socketIndex, gem);
+                        this.closeGemInventoryPopup();
+                        this.refreshSkillsScreenUI();
+                    }
+                });
+                cell.cellBg.on('pointerout', () => {
+                    if (cellLpTimer) { cellLpTimer.remove(false); cellLpTimer = null; }
+                });
+            } else {
+                cell.cellBg.on('pointerup', () => {
                     this.equipGemToActiveSlot(slotIndex, gem);
-                } else {
-                    this.equipGemToSupportSlot(slotIndex, socketIndex, gem);
-                }
-                this.closeGemInventoryPopup();
-                this.refreshSkillsScreenUI();
-            });
+                    this.closeGemInventoryPopup();
+                    this.refreshSkillsScreenUI();
+                });
+            }
         });
 
         if (this.gemInvCountLabel) {
@@ -6300,7 +6350,7 @@ class Match3Scene extends Phaser.Scene {
 
             // Label above gem
             const cardLabel = this.add.text(centerX, centerY - mainRadius - 14, `Skill ${slotIndex + 1}`, {
-                fontSize: '13px',
+                fontSize: '15px',
                 color: '#d9d9d9',
                 fontStyle: 'bold'
             }).setOrigin(0.5);
@@ -6310,7 +6360,7 @@ class Match3Scene extends Phaser.Scene {
                 .setInteractive({ useHandCursor: true });
 
             const iconText = this.add.text(centerX, centerY, '', {
-                fontSize: '44px'
+                fontSize: '50px'
             }).setOrigin(0.5);
 
             const skillIconImage = this.add.image(centerX, centerY, 'skill_cleave')
@@ -6318,15 +6368,16 @@ class Match3Scene extends Phaser.Scene {
             skillIconImage.setDisplaySize(mainRadius * 2 + 2, mainRadius * 2 + 2);
 
             const nameText = this.add.text(centerX, centerY + mainRadius + 10, '', {
-                fontSize: '11px',
+                fontSize: '16px',
                 color: '#ffffff',
                 fontStyle: 'bold',
-                wordWrap: { width: 108, useAdvancedWrap: true },
+                maxLines: 1,
+                wordWrap: { width: 116, useAdvancedWrap: true },
                 align: 'center'
             }).setOrigin(0.5);
 
-            const chargeText = this.add.text(centerX, centerY + mainRadius + 28, '', {
-                fontSize: '11px',
+            const chargeText = this.add.text(centerX, centerY + mainRadius + 32, '', {
+                fontSize: '13px',
                 color: '#cccccc'
             }).setOrigin(0.5);
 
@@ -6356,17 +6407,50 @@ class Match3Scene extends Phaser.Scene {
                     .setOrigin(0.5).setVisible(false);
                 socketImage.setDisplaySize(supportRadius * 2 + 2, supportRadius * 2 + 2);
 
-                socketBg.on('pointerup', () => {
-                    this.openGemInventoryPopup('support', slotIndex, socketIndex);
-                });
+                const socketNameText = this.add.text(socketX, socketY + supportRadius + 4, '', {
+                    fontSize: '10px',
+                    color: '#b0b0cc',
+                    align: 'center',
+                    maxLines: 1,
+                    wordWrap: { width: 100, useAdvancedWrap: true }
+                }).setOrigin(0.5, 0);
+
+                // Socket: short tap opens inventory; long press shows info popup and closes on release
+                {
+                    let socketLpTimer = null;
+                    let socketLpFired = false;
+                    socketBg.on('pointerdown', () => {
+                        socketLpFired = false;
+                        const loadout = this.playerSkills[slotIndex];
+                        const supportId = loadout && loadout.supportIds ? loadout.supportIds[socketIndex] : null;
+                        if (supportId) {
+                            socketLpTimer = this.time.delayedCall(500, () => {
+                                socketLpFired = true;
+                                this.showSupportGemInfoPopup({ type: 'support', id: supportId });
+                            });
+                        }
+                    });
+                    socketBg.on('pointerup', () => {
+                        if (socketLpTimer) { socketLpTimer.remove(false); socketLpTimer = null; }
+                        if (socketLpFired) {
+                            socketLpFired = false;
+                            if (this.skillsGemModal) this.skillsGemModal.setVisible(false);
+                        } else {
+                            this.openGemInventoryPopup('support', slotIndex, socketIndex);
+                        }
+                    });
+                    socketBg.on('pointerout', () => {
+                        if (socketLpTimer) { socketLpTimer.remove(false); socketLpTimer = null; }
+                    });
+                }
 
                 supportSockets.push({
-                    socketBg, socketText, socketImage,
+                    socketBg, socketText, socketImage, socketNameText,
                     connector: null,
                     center: { x: socketX, y: socketY },
                     radius: supportRadius
                 });
-                this.skillsScreenGroup.add([socketBg, socketText, socketImage]);
+                this.skillsScreenGroup.add([socketBg, socketText, socketImage, socketNameText]);
             }
 
             {
@@ -6526,12 +6610,13 @@ class Match3Scene extends Phaser.Scene {
                     .setOrigin(0.5).setVisible(false);
                 cellImage.setDisplaySize(invCellRadius * 2 - 8, invCellRadius * 2 - 8);
 
-                const cellIcon = this.add.text(cx, cy, '', { fontSize: '22px' }).setOrigin(0.5);
+                const cellIcon = this.add.text(cx, cy, '', { fontSize: '26px' }).setOrigin(0.5);
 
                 const cellName = this.add.text(cx, cy + invCellRadius + 2, '', {
-                    fontSize: '9px', color: '#cccccc',
+                    fontSize: '13px', color: '#cccccc',
+                    maxLines: 1,
                     align: 'center',
-                    wordWrap: { width: invCellSpacing - 4, useAdvancedWrap: true }
+                    wordWrap: { width: invCellSpacing - 6, useAdvancedWrap: true }
                 }).setOrigin(0.5, 0);
 
                 this.gemInventoryGridCells.push({ cellBg, cellImage, cellIcon, cellName });
