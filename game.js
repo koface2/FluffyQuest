@@ -2845,10 +2845,10 @@ class Match3Scene extends Phaser.Scene {
         this.skillBarContainer = this.add.container(0, 0);
 
         // Arrange skill slots along the bottom, not touching tiles
-        // Leave at least 24px gap above the skillbar and 24px from screen edges
-        const minGap = 24;
-        const edgePad = 32;
-        const bottomPad = 48; // Increased from 18 to 48 to move skill bar up
+        // Tuned so icons are larger while staying below the grid (bottom = 630) and labels fit above screen bottom
+        const minGap = 16;
+        const edgePad = 26;
+        const bottomPad = 44;
         const iconDiameter = Math.min(170, Math.floor((width - 2 * edgePad - 2 * minGap) / 3));
         const iconRadius = iconDiameter / 2;
         const slotSpacing = minGap;
@@ -6262,10 +6262,10 @@ class Match3Scene extends Phaser.Scene {
             Math.round(width / 2),
             Math.round(width * 5 / 6)
         ];
-        const mainY = 157;
-        const mainRadius = 54;     // borderless — no stroke
-        const supportRadius = 32;
-        const supportStartY = 320;
+        const mainY = 165;
+        const mainRadius = 62;     // borderless — no stroke
+        const supportRadius = 38;
+        const supportStartY = 328;
         const supportGapY = 88;
         this.skillsActiveSlotUI = [];
 
@@ -6285,7 +6285,7 @@ class Match3Scene extends Phaser.Scene {
                 .setInteractive({ useHandCursor: true });
 
             const iconText = this.add.text(centerX, centerY, '', {
-                fontSize: '38px'
+                fontSize: '44px'
             }).setOrigin(0.5);
 
             const skillIconImage = this.add.image(centerX, centerY, 'skill_cleave')
@@ -6323,7 +6323,7 @@ class Match3Scene extends Phaser.Scene {
                     .setInteractive({ useHandCursor: true });
 
                 const socketText = this.add.text(socketX, socketY, '·', {
-                    fontSize: '14px',
+                    fontSize: '20px',
                     color: '#888888'
                 }).setOrigin(0.5);
 
@@ -6436,21 +6436,20 @@ class Match3Scene extends Phaser.Scene {
         // (Gem Inventory Button removed — inventory opens via slot clicks)
 
         // --- Gem Inventory Popup (modeled after item inventory) ---
-        // 5 cols × 4 rows = 20 gems per page
-        const invCols = 5;
+        // 4 cols × 4 rows = 16 gems per page (larger cells for readability)
+        const invCols = 4;
         const invRows = 4;
         this.gemInventoryPage = 0;
         this._gemInvPageSize = invCols * invRows;
 
-        // Cell layout: 5 evenly-spaced columns
-        const invCellSpacing = Math.floor(width / invCols);  // 78px each
-        const invCellRadius = 29;
-        this._invCellImageSize = invCellRadius * 2 - 8;  // 50px — reused in refreshGemInventoryPopup
-        // Card: center at (width/2, height/2 - 10), height 460
-        //   top = height/2 - 240, bottom = height/2 + 220
+        // Cell layout: 4 evenly-spaced columns
+        const invCellSpacing = Math.floor(width / invCols);  // 97px each
+        const invCellRadius = 36;
+        this._invCellImageSize = invCellRadius * 2 - 8;  // 64px — reused in refreshGemInventoryPopup
+        // Card: center at (width/2, height/2 - 10), height 480
         const invCardCenterY = height / 2 - 10;
-        const invCardHalfH  = 230;
-        const invGridTopY = invCardCenterY - invCardHalfH + 80;  // first row center
+        const invCardHalfH  = 240;
+        const invGridTopY = invCardCenterY - invCardHalfH + 88;  // first row center
 
         const invOverlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.85)
             .setInteractive({ useHandCursor: false });
@@ -6492,7 +6491,7 @@ class Match3Scene extends Phaser.Scene {
         for (let row = 0; row < invRows; row++) {
             for (let col = 0; col < invCols; col++) {
                 const cx = Math.round((col + 0.5) * invCellSpacing);
-                const cy = invGridTopY + row * 84;
+                const cy = invGridTopY + row * 96;
 
                 const cellBg = this.add.circle(cx, cy, invCellRadius, 0x141e2a, 1)
                     .setStrokeStyle(2, 0x2a3d50)
@@ -6502,10 +6501,10 @@ class Match3Scene extends Phaser.Scene {
                     .setOrigin(0.5).setVisible(false);
                 cellImage.setDisplaySize(invCellRadius * 2 - 8, invCellRadius * 2 - 8);
 
-                const cellIcon = this.add.text(cx, cy, '', { fontSize: '18px' }).setOrigin(0.5);
+                const cellIcon = this.add.text(cx, cy, '', { fontSize: '22px' }).setOrigin(0.5);
 
                 const cellName = this.add.text(cx, cy + invCellRadius + 2, '', {
-                    fontSize: '8px', color: '#cccccc',
+                    fontSize: '9px', color: '#cccccc',
                     align: 'center',
                     wordWrap: { width: invCellSpacing - 4, useAdvancedWrap: true }
                 }).setOrigin(0.5, 0);
