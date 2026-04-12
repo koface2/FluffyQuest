@@ -2527,11 +2527,11 @@ class Match3Scene extends Phaser.Scene {
     /** Spawns falling snowflake particles over the enemy area for Blizzard. */
     spawnBlizzardEffect(enemies) {
         const flakeCount = 18 + (enemies ? enemies.length * 3 : 0);
-        const minX = GRID_OFFSET_X + GRID_WIDTH * TILE_SIZE * 0.4;
-        const maxX = GRID_OFFSET_X + GRID_WIDTH * TILE_SIZE + 30;
+        const minX = 230;
+        const maxX = 360;
         for (let i = 0; i < flakeCount; i++) {
             const x = Phaser.Math.Between(minX, maxX);
-            const flake = this.add.text(x, GRID_OFFSET_Y - 24, '❄', {
+            const flake = this.add.text(x, -10, '❄', {
                 fontSize: `${Phaser.Math.Between(10, 20)}px`,
                 color: Phaser.Math.RND.pick(['#aaddff', '#88bbff', '#ffffff'])
             }).setOrigin(0.5).setDepth(1095).setAlpha(0.92);
@@ -5533,12 +5533,10 @@ class Match3Scene extends Phaser.Scene {
                 const oldVal = equippedStats[stat] || 0;
                 const delta = newVal - oldVal;
                 const label = this.getStatLabel(stat);
-                if (!hasEquipped || oldVal === 0) {
+                if (!hasEquipped || oldVal === 0 || delta > 0) {
                     return { text: `${label} +${newVal}`, color: '#4eff8a' };
-                } else if (delta > 0) {
-                    return { text: `${label} +${newVal} (+${delta})`, color: '#4eff8a' };
                 } else if (delta < 0) {
-                    return { text: `${label} +${newVal} (${delta})`, color: '#ff6b6b' };
+                    return { text: `${label} +${newVal}`, color: '#ff6b6b' };
                 } else {
                     return { text: `${label} +${newVal}`, color: '#ffd966' };
                 }
