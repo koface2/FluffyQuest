@@ -5263,11 +5263,10 @@ class Match3Scene extends Phaser.Scene {
             const compareLines = [];
             for (let li = 0; li < 6; li++) {
                 const cl = this.add.text(centerX, centerY - 26 + li * 24, '', {
-                    fontSize: '14px',
+                    fontSize: '12px',
                     fontFamily: 'Verdana, Georgia, sans-serif',
                     color: '#8aff8a',
-                    align: 'center',
-                    wordWrap: { width: cardWidth - 10, useAdvancedWrap: true }
+                    align: 'center'
                 }).setOrigin(0.5);
                 compareLines.push(cl);
             }
@@ -6575,16 +6574,16 @@ class Match3Scene extends Phaser.Scene {
             skillIconImage.setDisplaySize(mainRadius * 2 + 2, mainRadius * 2 + 2);
 
             const nameText = this.add.text(centerX, centerY + mainRadius + 10, '', {
-                fontSize: '16px',
+                fontSize: '11px',
                 color: '#ffffff',
                 fontStyle: 'bold',
                 maxLines: 1,
-                wordWrap: { width: 116, useAdvancedWrap: true },
+                wordWrap: { width: 120, useAdvancedWrap: false },
                 align: 'center'
             }).setOrigin(0.5);
 
-            const chargeText = this.add.text(centerX, centerY + mainRadius + 32, '', {
-                fontSize: '13px',
+            const chargeText = this.add.text(centerX, centerY + mainRadius + 26, '', {
+                fontSize: '12px',
                 color: '#cccccc'
             }).setOrigin(0.5);
 
@@ -6618,8 +6617,8 @@ class Match3Scene extends Phaser.Scene {
                     fontSize: '10px',
                     color: '#b0b0cc',
                     align: 'center',
-                    maxLines: 1,
-                    wordWrap: { width: 100, useAdvancedWrap: true }
+                    maxLines: 2,
+                    wordWrap: { width: 110, useAdvancedWrap: true }
                 }).setOrigin(0.5, 0);
 
                 // Socket: short tap opens inventory; long press shows info popup and closes on release
@@ -7345,13 +7344,12 @@ class Match3Scene extends Phaser.Scene {
         this.inventoryAffixLines = [];
         for (let li = 0; li < 7; li++) {
             const lineObj = this.add.text(width / 2, height / 2 - 66 + li * 22, '', {
-                fontSize: '15px',
+                fontSize: '13px',
                 fontFamily: 'Verdana, Georgia, sans-serif',
                 color: '#ffd966',
                 align: 'center',
                 stroke: '#000000',
-                strokeThickness: 1,
-                wordWrap: { width: 340, useAdvancedWrap: true }
+                strokeThickness: 1
             }).setOrigin(0.5).setVisible(false);
             this.inventoryAffixLines.push(lineObj);
         }
@@ -8225,16 +8223,38 @@ class Match3Scene extends Phaser.Scene {
                     const overlayKey = st.type === 'frost' ? 'special_frost'
                         : st.type === 'zap' ? 'special_zap'
                         : 'special_flame';
+                    // Glow colour per type
+                    const glowColor = st.type === 'frost' ? 0x88ddff
+                        : st.type === 'zap' ? 0xffee44
+                        : 0xff6600;
+                    // Circular glow drawn around the asset's circle, behind the image
+                    const glowRadius = Math.floor((TILE_SIZE - 4) / 2) + 5;
+                    const glowG = this.add.graphics().setDepth(4);
+                    glowG.fillStyle(glowColor, 0.15);
+                    glowG.fillCircle(posX, posY, glowRadius);
+                    glowG.lineStyle(5, glowColor, 1);
+                    glowG.strokeCircle(posX, posY, glowRadius);
+                    this.boardContainer.add(glowG);
+                    this.tweens.add({
+                        targets: glowG,
+                        alpha: { from: 0.45, to: 1 },
+                        duration: 700,
+                        yoyo: true,
+                        repeat: -1,
+                        ease: 'Sine.easeInOut'
+                    });
                     const overlay = this.textures.exists(overlayKey)
                         ? this.add.image(posX, posY, overlayKey)
                             .setDisplaySize(TILE_SIZE - 4, TILE_SIZE - 4)
                             .setOrigin(0.5)
                             .setDepth(5)
-                            .setAlpha(0.85)
+                            .setTint(0xffffff)
+                            .setAlpha(1)
                         : this.add.text(posX + 14, posY - 14,
                             st.type === 'frost' ? '❄️' : st.type === 'zap' ? '⚡' : '🔥',
                             { fontSize: '16px' }).setOrigin(0.5).setDepth(5);
                     this.boardContainer.add(overlay);
+                    this.tileSprites[y][x].glowRect = glowG;
                     this.tileSprites[y][x].overlay = overlay;
 
                     // Zap tiles: click to explode
