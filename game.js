@@ -307,6 +307,33 @@ const ACTIVE_SKILL_GEMS = [
         mode: 'transform-gold-to-health',
         basePower: 0,
         scalingStat: 'physical'
+    },
+    {
+        id: 'frostbite',
+        name: 'Frostbite',
+        tileEffect: 'magic',
+        baseThreshold: 4,
+        mode: 'transform-frost-tiles',
+        basePower: 5,
+        scalingStat: 'magic'
+    },
+    {
+        id: 'burst-lightning',
+        name: 'Burst Lightning',
+        tileEffect: 'ranged',
+        baseThreshold: 4,
+        mode: 'transform-zap-tiles',
+        basePower: 20,
+        scalingStat: 'ranged'
+    },
+    {
+        id: 'kindling',
+        name: 'Kindling',
+        tileEffect: 'physical',
+        baseThreshold: 4,
+        mode: 'transform-flame-tiles',
+        basePower: 15,
+        scalingStat: 'physical'
     }
 ];
 
@@ -417,7 +444,10 @@ const SKILL_ICON_MAP = {
     'cloak-of-flames': 'skill_cloakofflames',
     'shock-and-awe': 'skill_shockandawe',
     'blizzard': 'skill_blizzard',
-    'heart-of-gold': 'skill_heartofgold'
+    'heart-of-gold': 'skill_heartofgold',
+    'frostbite': 'skill_frostbite',
+    'burst-lightning': 'skill_burstlightning',
+    'kindling': 'skill_kindling'
 };
 
 // ---------------------------------------------------------------------------
@@ -966,6 +996,7 @@ class Match3Scene extends Phaser.Scene {
         this.skillCharge = this.createInitialSkillCharge();
         this.cloakOfFlamesActive = false;
         this.cloakOfFlamesDamage = 0;
+        this.specialTiles = {}; // key: "x,y" → { type: 'frost'|'zap'|'flame', x, y }
         this.headhunterKills = 0;
         this.stolenEnemyAffixes = [];
 
@@ -1043,6 +1074,7 @@ class Match3Scene extends Phaser.Scene {
         this.skillCharge = this.createInitialSkillCharge();
         this.cloakOfFlamesActive = false;
         this.cloakOfFlamesDamage = 0;
+        this.specialTiles = {};
         this.skillsInventoryGems = this.createSkillGemInventoryPool();
         this.generateStoreInventory();
         // Reset state flags that persist across scene.restart()
@@ -1893,6 +1925,10 @@ class Match3Scene extends Phaser.Scene {
             this.transformGoldTilesToHealth();
         }
 
+        if (castResult.transformSpecialTiles) {
+            this.placeSpecialTiles(castResult.transformSpecialTiles.type, castResult.transformSpecialTiles.count);
+        }
+
         if (this.allEnemiesDead()) {
             if (!this.awaitingRewardChoice) {
                 this.awaitingRewardChoice = true;
@@ -1941,6 +1977,123 @@ class Match3Scene extends Phaser.Scene {
         }
         if (count > 0) {
             this.addCombatLog(`Heart of Gold: ${count} gold tile${count !== 1 ? 's' : ''} → hearts`, '#ff69b4');
+        }
+    }
+
+    /** Places `count` random tiles as special tiles of the given type. */
+    placeSpecialTiles(type, count) {
+        if (!this.specialTiles) this.specialTiles = {};
+        // Gather all valid tile positions that aren't already special
+        const candidates = [];
+        for (let y = 0; y < GRID_HEIGHT; y++) {
+            for (let x = 0; x < GRID_WIDTH; x++) {
+                if (this.grid[y][x] >= 0 && !this.specialTiles[`${x},${y}`]) {
+                    candidates.push({ x, y });
+                }
+            }
+        }
+        Phaser.Utils.Array.Shuffle(candidates);
+        const chosen = candidates.slice(0, count);
+        chosen.forEach(({ x, y }) => {
+            this.specialTiles[`${x},${y}`] = { type, x, y };
+        });
+        this.renderGrid();
+    }
+
+    /** Returns the total cold damage % bonus from frost tiles on the board (4% each). */
+    getFrostTileColdBonus() {
+        if (!this.specialTiles) return 0;
+        let count = 0;
+        for (const key in this.specialTiles) {
+            if (this.specialTiles[key].type === 'frost') count++;
+        }
+        return count * 4; // percent
+    }
+
+    /** Explode a zap tile: deal lightning damage and destroy adjacent tiles. */
+    handleZapTileClick(x, y) {
+        if (!this.specialTiles) return;
+        const key = `${x},${y}`;
+        if (!this.specialTiles[key] || this.specialTiles[key].type !== 'zap') return;
+        if (this.isSwapping) return;
+
+        this.isSwapping = true;
+
+        // Remove the zap tile marker
+        delete this.specialTiles[key];
+
+        // Calculate lightning damage from basePower of burst-lightning skill + ranged scaling
+        const gear = this.getEquippedStatTotals();
+        const skill = this.getActiveSkillById('burst-lightning');
+        const baseDmg = skill ? skill.basePower : 20;
+        const zapDmg = Math.max(5, baseDmg + Math.floor(gear.ranged * 0.8));
+
+        // Deal damage to target enemy
+        const target = this.getTargetEnemy();
+        if (target) {
+            this.damageEnemy(target, zapDmg);
+            const enemyCenterX = GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) * 0.75;
+            this.showCombatMessage(`⚡-${zapDmg}`, '#ffe566', enemyCenterX, GRID_OFFSET_Y - 15);
+            if (target.health <= 0) this.handleEnemyDeath(target);
+        }
+        this.addCombatLog(`⚡ Zap tile exploded for ${zapDmg} lightning dmg!`, '#ffe566');
+
+        // Destroy the zap tile itself and 4 adjacent tiles (no damage from adjacents)
+        const toDestroy = [{ x, y }];
+        const dirs = [{ dx: 0, dy: -1 }, { dx: 0, dy: 1 }, { dx: -1, dy: 0 }, { dx: 1, dy: 0 }];
+        dirs.forEach(d => {
+            const nx = x + d.dx, ny = y + d.dy;
+            if (nx >= 0 && nx < GRID_WIDTH && ny >= 0 && ny < GRID_HEIGHT && this.grid[ny][nx] >= 0) {
+                toDestroy.push({ x: nx, y: ny });
+            }
+        });
+        toDestroy.forEach(({ x: tx, y: ty }) => {
+            this.grid[ty][tx] = -1;
+            // Also clear any special tiles destroyed
+            if (this.specialTiles[`${tx},${ty}`]) delete this.specialTiles[`${tx},${ty}`];
+        });
+
+        this.updateEnemyUI();
+        this.renderGrid();
+
+        if (this.allEnemiesDead()) {
+            if (!this.awaitingRewardChoice) {
+                this.awaitingRewardChoice = true;
+                this.time.delayedCall(1500, () => this.showRewardScreen());
+            }
+            return;
+        }
+
+        // Trigger gravity to fill the holes
+        this.time.delayedCall(200, () => {
+            this.applyGravity();
+        });
+    }
+
+    /** Each flame tile has a 50% chance to spread to a random adjacent non-special tile. */
+    processFlameTileSpread() {
+        if (!this.specialTiles) return;
+        const flameTiles = Object.values(this.specialTiles).filter(st => st.type === 'flame');
+        if (flameTiles.length === 0) return;
+        let spread = false;
+        const dirs = [{ dx: 0, dy: -1 }, { dx: 0, dy: 1 }, { dx: -1, dy: 0 }, { dx: 1, dy: 0 }];
+        flameTiles.forEach(ft => {
+            if (Math.random() < 0.5) {
+                const candidates = dirs
+                    .map(d => ({ x: ft.x + d.dx, y: ft.y + d.dy }))
+                    .filter(p => p.x >= 0 && p.x < GRID_WIDTH && p.y >= 0 && p.y < GRID_HEIGHT
+                        && this.grid[p.y][p.x] >= 0
+                        && !this.specialTiles[`${p.x},${p.y}`]);
+                if (candidates.length > 0) {
+                    const target = candidates[Math.floor(Math.random() * candidates.length)];
+                    this.specialTiles[`${target.x},${target.y}`] = { type: 'flame', x: target.x, y: target.y };
+                    spread = true;
+                }
+            }
+        });
+        if (spread) {
+            this.addCombatLog('🔥 Flame tiles spread!', '#ff6a00');
+            this.renderGrid();
         }
     }
 
@@ -3041,6 +3194,14 @@ class Match3Scene extends Phaser.Scene {
             modeLabel = 'Deals damage to current enemy';
         } else if (activeSkill.mode === 'heal') {
             modeLabel = 'Restores your health';
+        } else if (activeSkill.mode === 'transform-gold-to-health') {
+            modeLabel = 'Transforms all gold tiles to heart tiles';
+        } else if (activeSkill.mode === 'transform-frost-tiles') {
+            modeLabel = '4 frost tiles: +4% cold dmg each. Cold dmg when matched';
+        } else if (activeSkill.mode === 'transform-zap-tiles') {
+            modeLabel = '4 zap tiles: tap to explode! Lightning dmg + destroys 4 adjacent';
+        } else if (activeSkill.mode === 'transform-flame-tiles') {
+            modeLabel = '4 flame tiles: spread each turn. BIG fire dmg when matched';
         } else {
             modeLabel = 'Generates gold';
         }
@@ -3227,6 +3388,12 @@ class Match3Scene extends Phaser.Scene {
                 modeLabel = 'Fire aura: burns all enemies each turn';
             } else if (activeSkill.mode === 'transform-gold-to-health') {
                 modeLabel = 'Transforms all gold tiles to heart tiles';
+            } else if (activeSkill.mode === 'transform-frost-tiles') {
+                modeLabel = '4 frost tiles: +4% cold dmg each. Cold dmg when matched';
+            } else if (activeSkill.mode === 'transform-zap-tiles') {
+                modeLabel = '4 zap tiles: tap to explode! Lightning dmg + destroys 4 adjacent';
+            } else if (activeSkill.mode === 'transform-flame-tiles') {
+                modeLabel = '4 flame tiles: spread each turn. BIG fire dmg when matched';
             } else if (activeSkill.mode === 'damage') {
                 modeLabel = 'Deals damage';
             } else if (activeSkill.mode === 'heal') {
@@ -3698,12 +3865,14 @@ class Match3Scene extends Phaser.Scene {
 
         // damage-all-chill: Blizzard — hits all + chills for reduced damage dealt
         if (activeSkill.mode === 'damage-all-chill') {
+            const frostMult = 1 + this.getFrostTileColdBonus() / 100;
+            const coldDmg = Math.round((rolledPower + extraHitDamage) * frostMult);
             result.enemyDamage = {
-                all: true, value: rolledPower + extraHitDamage,
+                all: true, value: coldDmg,
                 chilledTurns: 2, chilledDamageMultiplier: 0.65
             };
             this.addCombatLog(
-                `${activeSkill.name} blasts all for ${rolledPower + extraHitDamage} cold dmg, Slow 2 turns${supportNames}`,
+                `${activeSkill.name} blasts all for ${coldDmg} cold dmg, Slow 2 turns${supportNames}`,
                 '#aaddff'
             );
         }
@@ -3723,6 +3892,24 @@ class Match3Scene extends Phaser.Scene {
         if (activeSkill.mode === 'transform-gold-to-health') {
             result.transformGoldToHealth = true;
             this.addCombatLog(`${activeSkill.name}: gold tiles → heart tiles`, '#ffd700');
+        }
+
+        // transform-frost-tiles: Frostbite — places frost tiles; each boosts cold dmg 4%
+        if (activeSkill.mode === 'transform-frost-tiles') {
+            result.transformSpecialTiles = { type: 'frost', count: 4 };
+            this.addCombatLog(`${activeSkill.name}: 4 frost tiles placed! (+4% cold dmg each)`, '#88ddff');
+        }
+
+        // transform-zap-tiles: Burst Lightning — places zap tiles; click to explode
+        if (activeSkill.mode === 'transform-zap-tiles') {
+            result.transformSpecialTiles = { type: 'zap', count: 4 };
+            this.addCombatLog(`${activeSkill.name}: 4 zap tiles placed! Tap to explode.`, '#ffe566');
+        }
+
+        // transform-flame-tiles: Kindling — places flame tiles; spread each turn
+        if (activeSkill.mode === 'transform-flame-tiles') {
+            result.transformSpecialTiles = { type: 'flame', count: 4 };
+            this.addCombatLog(`${activeSkill.name}: 4 flame tiles placed! They spread each turn.`, '#ff6a00');
         }
 
         if (activeSkill.mode === 'heal') {
@@ -5322,6 +5509,7 @@ class Match3Scene extends Phaser.Scene {
         this.skillCharge = this.createInitialSkillCharge();
         this.cloakOfFlamesActive = false;
         this.cloakOfFlamesDamage = 0;
+        this.specialTiles = {};
         this.headhunterKills = 0;
         // Expire stolen affixes older than 1 previous battle (Headhunter: lasts current + next battle)
         this.stolenEnemyAffixes = (this.stolenEnemyAffixes || []).filter(
@@ -8008,6 +8196,31 @@ class Match3Scene extends Phaser.Scene {
                 this.tileSprites[y][x] = { rect, icon, x, y, type };
                 this.boardContainer.add(rect);
                 this.boardContainer.add(icon);
+
+                // Special tile overlay
+                const stKey = `${x},${y}`;
+                const st = this.specialTiles && this.specialTiles[stKey];
+                if (st) {
+                    const overlayEmoji = st.type === 'frost' ? '❄️'
+                        : st.type === 'zap' ? '⚡'
+                        : '🔥'; // flame
+                    const overlay = this.add.text(posX + 14, posY - 14, overlayEmoji, {
+                        fontSize: '16px'
+                    }).setOrigin(0.5).setDepth(5);
+                    this.boardContainer.add(overlay);
+                    this.tileSprites[y][x].overlay = overlay;
+
+                    // Zap tiles: click to explode
+                    if (st.type === 'zap') {
+                        rect.on('pointerup', (pointer, localX, localY, event) => {
+                            if (this.isSwapping) return;
+                            // Only trigger click if not a drag
+                            if (this.dragStart) return;
+                            event.stopPropagation();
+                            this.handleZapTileClick(x, y);
+                        });
+                    }
+                }
             }
         }
     }
@@ -8398,6 +8611,34 @@ class Match3Scene extends Phaser.Scene {
             }
             this.grid[y][x] = -1;
             this.score += 10;
+
+            // Special tile match effects
+            if (this.specialTiles) {
+                const stKey = `${x},${y}`;
+                const st = this.specialTiles[stKey];
+                if (st) {
+                    if (st.type === 'frost') {
+                        // Small cold damage per frost tile matched
+                        const coldDmg = Math.max(3, 5 + Math.floor(gear.magic * 0.3));
+                        totalEnemyDamage += coldDmg;
+                        magicDamage += coldDmg;
+                        this.addCombatLog(`❄️ Frost tile shattered: ${coldDmg} cold dmg`, '#88ddff');
+                    } else if (st.type === 'zap') {
+                        // Small lightning damage per zap tile matched
+                        const zapDmg = Math.max(3, 5 + Math.floor(gear.ranged * 0.3));
+                        totalEnemyDamage += zapDmg;
+                        rangedDamage += zapDmg;
+                        this.addCombatLog(`⚡ Zap tile matched: ${zapDmg} lightning dmg`, '#ffe566');
+                    } else if (st.type === 'flame') {
+                        // Big fire damage per flame tile matched
+                        const fireDmg = Math.max(8, 15 + Math.floor(gear.physical * 0.5));
+                        totalEnemyDamage += fireDmg;
+                        physicalDamage += fireDmg;
+                        this.addCombatLog(`🔥 Flame tile ignited: ${fireDmg} fire dmg`, '#ff6a00');
+                    }
+                    delete this.specialTiles[stKey];
+                }
+            }
         });
 
         // --- 4 and 5-tile combos: bonus damage / heal / gold boost ---
@@ -8577,18 +8818,21 @@ class Match3Scene extends Phaser.Scene {
             }
         }
         if (magicDamage > 0) {
+            // Frost tile passive: +4% cold damage per frost tile on board
+            const frostBonus = this.getFrostTileColdBonus();
             // Gear legendary: 100% conversion
             if (gear.magicToCold >= 1) {
-                const magMult = 1 + (talentBonuses.magicDamage + talentBonuses.coldDamage) / 100;
+                const magMult = 1 + (talentBonuses.magicDamage + talentBonuses.coldDamage + frostBonus) / 100;
                 magicDamage = Math.floor(magicDamage * magMult * (talentBonuses.feelingBlue ? 2 : 1));
                 this.addCombatLog(`❄️ Glacial Mind conversion: magic→cold`, '#8ecfff');
             } else {
                 // Frost Mage: 50% of magic converts to cold — applies coldDamage bonus on top
                 const magMult = talentBonuses.frostMage
-                    ? (0.5 * (1 + talentBonuses.magicDamage / 100) + 0.5 * (1 + (talentBonuses.magicDamage + talentBonuses.coldDamage) / 100))
-                    : (1 + talentBonuses.magicDamage / 100);
+                    ? (0.5 * (1 + talentBonuses.magicDamage / 100) + 0.5 * (1 + (talentBonuses.magicDamage + talentBonuses.coldDamage + frostBonus) / 100))
+                    : (1 + (talentBonuses.magicDamage + frostBonus) / 100);
                 magicDamage = Math.floor(magicDamage * magMult * (talentBonuses.feelingBlue ? 2 : 1));
             }
+            if (frostBonus > 0) this.addCombatLog(`❄️ Frost tiles: +${frostBonus}% cold dmg`, '#88ddff');
         }
         if (rangedDamage > 0) {
             // Gear legendary: 100% conversion
@@ -8786,6 +9030,23 @@ class Match3Scene extends Phaser.Scene {
 
         this.grid = newGrid;
 
+        // Remap special tiles based on tile fall animations
+        if (this.specialTiles && Object.keys(this.specialTiles).length > 0) {
+            const newSpecialTiles = {};
+            animations.forEach(anim => {
+                const key = `${anim.x},${anim.fromY}`;
+                if (this.specialTiles[key]) {
+                    newSpecialTiles[`${anim.x},${anim.toY}`] = { ...this.specialTiles[key], x: anim.x, y: anim.toY };
+                }
+            });
+            // Preserve any specials that didn't fall (not in animations)
+            const movedFromKeys = new Set(animations.map(a => `${a.x},${a.fromY}`));
+            for (const key in this.specialTiles) {
+                if (!movedFromKeys.has(key)) newSpecialTiles[key] = this.specialTiles[key];
+            }
+            this.specialTiles = newSpecialTiles;
+        }
+
         // Animate falling tiles
         const allAnimations = [];
         
@@ -8879,6 +9140,9 @@ class Match3Scene extends Phaser.Scene {
     enemyAttack() {
         const alive = this.getAliveEnemies();
         if (alive.length === 0 || this.awaitingRewardChoice) return;
+
+        // Flame tiles spread: each flame tile has 50% chance to convert an adjacent tile
+        this.processFlameTileSpread();
 
         // Cloak of Flames — burn all enemies before they attack
         if (this.cloakOfFlamesActive) {
@@ -9218,6 +9482,9 @@ class LoadScreen extends Phaser.Scene {
         this.load.image('skill_shockandawe', 'assets/Skills/Shockandaweskill.png');
         this.load.image('skill_blizzard', 'assets/Skills/Blizzard.png');
         this.load.image('skill_heartofgold', 'assets/Skills/heartofgoldskill.png');
+        this.load.image('skill_frostbite', 'assets/Skills/FrostbiteSkill.png');
+        this.load.image('skill_burstlightning', 'assets/Skills/BurstLightningSkill.png');
+        this.load.image('skill_kindling', 'assets/Skills/KindlingSkill.png');
         this.load.image('support_echo', 'assets/Skills/Echosupport.png');
         this.load.image('support_focus', 'assets/Skills/Focussupport.png');
         this.load.image('support_brutality', 'assets/Skills/brutalitysupport.png');
