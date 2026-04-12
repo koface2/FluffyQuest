@@ -223,9 +223,10 @@ const ACTIVE_SKILL_GEMS = [
         name: 'Cleave',
         tileEffect: 'physical',
         baseThreshold: 4,
-        mode: 'damage-all', // new mode to indicate it hits all enemies
-        basePower: 10, // reduced damage
-        scalingStat: 'physical'
+        mode: 'damage-all',
+        basePower: 10,
+        scalingStat: 'physical',
+        tags: ['physical', 'melee', 'damage-all']
     },
     {
         id: 'minute-missles',
@@ -234,7 +235,8 @@ const ACTIVE_SKILL_GEMS = [
         baseThreshold: 4,
         mode: 'damage-random-4',
         basePower: 26,
-        scalingStat: 'magic'
+        scalingStat: 'magic',
+        tags: ['magic', 'projectile', 'random']
     },
     {
         id: 'multishot',
@@ -243,7 +245,8 @@ const ACTIVE_SKILL_GEMS = [
         baseThreshold: 4,
         mode: 'damage-repeat-target',
         basePower: 22,
-        scalingStat: 'ranged'
+        scalingStat: 'ranged',
+        tags: ['ranged', 'projectile', 'multi-hit']
     },
     {
         id: 'duck-and-roll',
@@ -252,7 +255,8 @@ const ACTIVE_SKILL_GEMS = [
         baseThreshold: 4,
         mode: 'damage',
         basePower: 20,
-        scalingStat: 'ranged'
+        scalingStat: 'ranged',
+        tags: ['ranged', 'projectile']
     },
     {
         id: 'energy-beam',
@@ -261,7 +265,8 @@ const ACTIVE_SKILL_GEMS = [
         baseThreshold: 4,
         mode: 'damage',
         basePower: 28,
-        scalingStat: 'magic'
+        scalingStat: 'magic',
+        tags: ['magic', 'projectile']
     },
     {
         id: 'reckless-attack',
@@ -270,7 +275,8 @@ const ACTIVE_SKILL_GEMS = [
         baseThreshold: 5,
         mode: 'damage',
         basePower: 30,
-        scalingStat: 'physical'
+        scalingStat: 'physical',
+        tags: ['physical', 'melee']
     },
     {
         id: 'cloak-of-flames',
@@ -279,7 +285,8 @@ const ACTIVE_SKILL_GEMS = [
         baseThreshold: 4,
         mode: 'cloak-aura',
         basePower: 20,
-        scalingStat: 'physical'
+        scalingStat: 'physical',
+        tags: ['physical', 'fire', 'aura']
     },
     {
         id: 'shock-and-awe',
@@ -288,7 +295,8 @@ const ACTIVE_SKILL_GEMS = [
         baseThreshold: 4,
         mode: 'damage-random-2-4',
         basePower: 27,
-        scalingStat: 'ranged'
+        scalingStat: 'ranged',
+        tags: ['ranged', 'lightning', 'random']
     },
     {
         id: 'blizzard',
@@ -297,7 +305,8 @@ const ACTIVE_SKILL_GEMS = [
         baseThreshold: 5,
         mode: 'damage-all-chill',
         basePower: 22,
-        scalingStat: 'magic'
+        scalingStat: 'magic',
+        tags: ['magic', 'cold', 'damage-all', 'chill']
     },
     {
         id: 'heart-of-gold',
@@ -306,7 +315,8 @@ const ACTIVE_SKILL_GEMS = [
         baseThreshold: 5,
         mode: 'transform-gold-to-health',
         basePower: 0,
-        scalingStat: 'physical'
+        scalingStat: 'physical',
+        tags: ['gold', 'utility', 'heal']
     },
     {
         id: 'frostbite',
@@ -315,7 +325,8 @@ const ACTIVE_SKILL_GEMS = [
         baseThreshold: 4,
         mode: 'transform-frost-tiles',
         basePower: 5,
-        scalingStat: 'magic'
+        scalingStat: 'magic',
+        tags: ['magic', 'cold', 'utility', 'board']
     },
     {
         id: 'burst-lightning',
@@ -324,7 +335,8 @@ const ACTIVE_SKILL_GEMS = [
         baseThreshold: 4,
         mode: 'transform-zap-tiles',
         basePower: 20,
-        scalingStat: 'ranged'
+        scalingStat: 'ranged',
+        tags: ['ranged', 'lightning', 'utility', 'board']
     },
     {
         id: 'kindling',
@@ -333,7 +345,8 @@ const ACTIVE_SKILL_GEMS = [
         baseThreshold: 4,
         mode: 'transform-flame-tiles',
         basePower: 15,
-        scalingStat: 'physical'
+        scalingStat: 'physical',
+        tags: ['physical', 'fire', 'utility', 'board']
     }
 ];
 
@@ -348,7 +361,8 @@ const SUPPORT_SKILL_GEMS = [
         lootFlat: 0,
         healFlat: 0,
         extraHitChance: 0,
-        imageKey: 'support_focus'
+        imageKey: 'support_focus',
+        tags: ['magic']
     },
     {
         id: 'brutality',
@@ -360,7 +374,8 @@ const SUPPORT_SKILL_GEMS = [
         lootFlat: 0,
         healFlat: 0,
         extraHitChance: 0,
-        imageKey: 'support_brutality'
+        imageKey: 'support_brutality',
+        tags: ['physical', 'melee']
     },
     {
         id: 'echo',
@@ -371,7 +386,8 @@ const SUPPORT_SKILL_GEMS = [
         lootFlat: 0,
         healFlat: 0,
         extraHitChance: 0.25,
-        imageKey: 'support_echo'
+        imageKey: 'support_echo',
+        tags: ['generic']
     },
     {
         id: 'vitality',
@@ -381,7 +397,8 @@ const SUPPORT_SKILL_GEMS = [
         powerMultiplier: 0.08,
         lootFlat: 0,
         healFlat: 8,
-        extraHitChance: 0
+        extraHitChance: 0,
+        tags: ['generic', 'heal']
     },
     {
         id: 'prosperity',
@@ -391,7 +408,8 @@ const SUPPORT_SKILL_GEMS = [
         powerMultiplier: 0,
         goldFlat: 12,
         healFlat: 0,
-        extraHitChance: 0
+        extraHitChance: 0,
+        tags: ['generic', 'gold']
     },
     {
         id: 'added-lightning-damage',
@@ -404,7 +422,8 @@ const SUPPORT_SKILL_GEMS = [
         lootFlat: 0,
         healFlat: 0,
         extraHitChance: 0,
-        imageKey: 'support_addedlightning'
+        imageKey: 'support_addedlightning',
+        tags: ['lightning', 'elemental']
     },
     {
         id: 'added-cold-damage',
@@ -417,7 +436,8 @@ const SUPPORT_SKILL_GEMS = [
         lootFlat: 0,
         healFlat: 0,
         extraHitChance: 0,
-        imageKey: 'support_addedcold'
+        imageKey: 'support_addedcold',
+        tags: ['cold', 'elemental']
     },
     {
         id: 'added-fire-damage',
@@ -430,7 +450,8 @@ const SUPPORT_SKILL_GEMS = [
         lootFlat: 0,
         healFlat: 0,
         extraHitChance: 0,
-        imageKey: 'support_addedfire'
+        imageKey: 'support_addedfire',
+        tags: ['fire', 'elemental']
     }
 ];
 
@@ -8201,12 +8222,18 @@ class Match3Scene extends Phaser.Scene {
                 const stKey = `${x},${y}`;
                 const st = this.specialTiles && this.specialTiles[stKey];
                 if (st) {
-                    const overlayEmoji = st.type === 'frost' ? '❄️'
-                        : st.type === 'zap' ? '⚡'
-                        : '🔥'; // flame
-                    const overlay = this.add.text(posX + 14, posY - 14, overlayEmoji, {
-                        fontSize: '16px'
-                    }).setOrigin(0.5).setDepth(5);
+                    const overlayKey = st.type === 'frost' ? 'special_frost'
+                        : st.type === 'zap' ? 'special_zap'
+                        : 'special_flame';
+                    const overlay = this.textures.exists(overlayKey)
+                        ? this.add.image(posX, posY, overlayKey)
+                            .setDisplaySize(TILE_SIZE - 4, TILE_SIZE - 4)
+                            .setOrigin(0.5)
+                            .setDepth(5)
+                            .setAlpha(0.85)
+                        : this.add.text(posX + 14, posY - 14,
+                            st.type === 'frost' ? '❄️' : st.type === 'zap' ? '⚡' : '🔥',
+                            { fontSize: '16px' }).setOrigin(0.5).setDepth(5);
                     this.boardContainer.add(overlay);
                     this.tileSprites[y][x].overlay = overlay;
 
@@ -9485,6 +9512,9 @@ class LoadScreen extends Phaser.Scene {
         this.load.image('skill_frostbite', 'assets/Skills/FrostbiteSkill.png');
         this.load.image('skill_burstlightning', 'assets/Skills/BurstLightningSkill.png');
         this.load.image('skill_kindling', 'assets/Skills/KindlingSkill.png');
+        this.load.image('special_frost', 'assets/FrostTile.png');
+        this.load.image('special_zap', 'assets/ZapTile.png');
+        this.load.image('special_flame', 'assets/flametile.png');
         this.load.image('support_echo', 'assets/Skills/Echosupport.png');
         this.load.image('support_focus', 'assets/Skills/Focussupport.png');
         this.load.image('support_brutality', 'assets/Skills/brutalitysupport.png');
