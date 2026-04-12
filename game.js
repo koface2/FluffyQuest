@@ -1619,6 +1619,68 @@ class Match3Scene extends Phaser.Scene {
         if (this.enemyInfoPopup) this.enemyInfoPopup.setVisible(false);
     }
 
+    showTileInfoPopup(x, y) {
+        this.hideTileInfoPopup();
+        const tileType = this.grid[y] && this.grid[y][x];
+        const stKey = `${x},${y}`;
+        const st = this.specialTiles && this.specialTiles[stKey];
+
+        let title, desc;
+        if (st) {
+            if (st.type === 'frost') {
+                title = '❄️ Frost Tile';
+                desc = 'Boosts cold damage by 4% while on the board. Deals cold damage when matched.';
+            } else if (st.type === 'zap') {
+                title = '⚡ Zap Tile';
+                desc = 'Tap to explode — deals lightning damage and destroys 4 adjacent tiles. Also deals lightning damage when matched.';
+            } else {
+                title = '🔥 Flame Tile';
+                desc = '50% chance each turn to spread fire to an adjacent tile. Deals heavy fire damage when matched.';
+            }
+        } else if (tileType !== undefined && tileType >= 0 && TILE_TYPES[tileType]) {
+            const info = TILE_TYPES[tileType];
+            const effectDesc = {
+                health:   'Restores player health when matched.',
+                magic:    'Deals magic damage when matched.',
+                ranged:   'Deals ranged damage when matched.',
+                physical: 'Deals physical damage when matched.',
+                gold:     'Grants gold when matched.'
+            };
+            title = `${info.icon} ${info.name[0].toUpperCase()}${info.name.slice(1)}`;
+            desc = effectDesc[info.effect] || 'Matched for its effect.';
+        } else {
+            return;
+        }
+
+        const W = 210, H = 86;
+        const cx = this.scale.width / 2;
+        const cy = GRID_OFFSET_Y - H / 2 - 8;
+
+        const container = this.add.container(0, 0).setDepth(200);
+        const bg = this.add.rectangle(cx, cy, W, H, 0x111118, 0.9)
+            .setStrokeStyle(2, 0xaaaacc, 0.9);
+        const titleTxt = this.add.text(cx, cy - H / 2 + 12, title, {
+            fontSize: '14px', color: '#ffffff', fontStyle: 'bold', align: 'center'
+        }).setOrigin(0.5, 0);
+        const descTxt = this.add.text(cx, cy - H / 2 + 32, desc, {
+            fontSize: '11px', color: '#cccccc', align: 'center',
+            wordWrap: { width: W - 18 }, maxLines: 3
+        }).setOrigin(0.5, 0);
+        container.add([bg, titleTxt, descTxt]);
+        this._tileInfoPopup = container;
+    }
+
+    hideTileInfoPopup() {
+        if (this._tileInfoPopup) {
+            this._tileInfoPopup.destroy(true);
+            this._tileInfoPopup = null;
+        }
+        if (this._tileHoldTimer) {
+            this._tileHoldTimer.remove(false);
+            this._tileHoldTimer = null;
+        }
+    }
+
     updateEnemyTargetMarkers() {
         const target = this.getTargetEnemy();
         this.enemies.forEach(e => {
@@ -6573,17 +6635,18 @@ class Match3Scene extends Phaser.Scene {
                 .setOrigin(0.5).setVisible(false);
             skillIconImage.setDisplaySize(mainRadius * 2 + 2, mainRadius * 2 + 2);
 
-            const nameText = this.add.text(centerX, centerY + mainRadius + 10, '', {
+            const nameText = this.add.text(centerX, centerY + mainRadius + 8, '', {
                 fontSize: '11px',
                 color: '#ffffff',
                 fontStyle: 'bold',
-                maxLines: 1,
-                wordWrap: { width: 120, useAdvancedWrap: false },
-                align: 'center'
-            }).setOrigin(0.5);
+                maxLines: 2,
+                wordWrap: { width: 118, useAdvancedWrap: true },
+                align: 'center',
+                lineSpacing: 1
+            }).setOrigin(0.5, 0);
 
-            const chargeText = this.add.text(centerX, centerY + mainRadius + 26, '', {
-                fontSize: '12px',
+            const chargeText = this.add.text(centerX, centerY + mainRadius + 42, '', {
+                fontSize: '11px',
                 color: '#cccccc'
             }).setOrigin(0.5);
 
@@ -8216,6 +8279,20 @@ class Match3Scene extends Phaser.Scene {
                 this.boardContainer.add(rect);
                 this.boardContainer.add(icon);
 
+                // Hold to show tile info popup
+                rect.on('pointerdown', () => {
+                    if (this._tileHoldTimer) {
+                        this._tileHoldTimer.remove(false);
+                        this._tileHoldTimer = null;
+                    }
+                    this._tileHoldTimer = this.time.delayedCall(320, () => {
+                        this._tileHoldTimer = null;
+                        this.showTileInfoPopup(x, y);
+                    });
+                });
+                rect.on('pointerup', () => this.hideTileInfoPopup());
+                rect.on('pointerout', () => this.hideTileInfoPopup());
+
                 // Special tile overlay
                 const stKey = `${x},${y}`;
                 const st = this.specialTiles && this.specialTiles[stKey];
@@ -8227,12 +8304,12 @@ class Match3Scene extends Phaser.Scene {
                     const glowColor = st.type === 'frost' ? 0x88ddff
                         : st.type === 'zap' ? 0xffee44
                         : 0xff6600;
-                    // Circular glow drawn around the asset's circle, behind the image
-                    const glowRadius = Math.floor((TILE_SIZE - 4) / 2) + 5;
+                    // Circular glow tight around the golden circle of the asset
+                    const glowRadius = Math.floor((TILE_SIZE - 4) / 2) + 1; // ~24px
                     const glowG = this.add.graphics().setDepth(4);
-                    glowG.fillStyle(glowColor, 0.15);
+                    glowG.fillStyle(glowColor, 0.12);
                     glowG.fillCircle(posX, posY, glowRadius);
-                    glowG.lineStyle(5, glowColor, 1);
+                    glowG.lineStyle(3, glowColor, 1);
                     glowG.strokeCircle(posX, posY, glowRadius);
                     this.boardContainer.add(glowG);
                     this.tweens.add({
@@ -8274,6 +8351,12 @@ class Match3Scene extends Phaser.Scene {
 
     handleDragStart(x, y) {
         if (this.isSwapping || this.isShowingEquipment) return;
+        // Cancel any tile hold-popup timer when a real drag begins
+        if (this._tileHoldTimer) {
+            this._tileHoldTimer.remove(false);
+            this._tileHoldTimer = null;
+        }
+        this.hideTileInfoPopup();
         this.dragStart = { x, y };
         // Bring tile to front while dragging
         const tile = this.tileSprites[y][x];
@@ -8343,6 +8426,18 @@ class Match3Scene extends Phaser.Scene {
         const temp = this.grid[y1][x1];
         this.grid[y1][x1] = this.grid[y2][x2];
         this.grid[y2][x2] = temp;
+
+        // Also move any special tile markers to follow the swap
+        if (this.specialTiles) {
+            const key1 = `${x1},${y1}`;
+            const key2 = `${x2},${y2}`;
+            const st1 = this.specialTiles[key1];
+            const st2 = this.specialTiles[key2];
+            if (st1) delete this.specialTiles[key1];
+            if (st2) delete this.specialTiles[key2];
+            if (st1) this.specialTiles[key2] = { ...st1, x: x2, y: y2 };
+            if (st2) this.specialTiles[key1] = { ...st2, x: x1, y: y1 };
+        }
 
         this.renderGrid();
 
