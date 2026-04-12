@@ -5,11 +5,15 @@ const GRID_OFFSET_X = 20;
 const GRID_OFFSET_Y = 280;
 
 const TILE_TYPES = [
-    { name: 'health', color: 0xff1493, icon: '♥', effect: 'health' },
-    { name: 'magic', color: 0x0000ff, icon: '📖', effect: 'magic' },
-    { name: 'ranged', color: 0x00ff00, icon: '🏹', effect: 'ranged' },
+    { name: 'health',   color: 0xff1493, icon: '♥',  effect: 'health'   },
+    { name: 'magic',    color: 0x0000ff, icon: '📖', effect: 'magic'    },
+    { name: 'ranged',   color: 0x00ff00, icon: '🏹', effect: 'ranged'   },
     { name: 'physical', color: 0xff0000, icon: '⚔️', effect: 'physical' },
-    { name: 'gold', color: 0xffff00, icon: '🪙', effect: 'gold' }
+    { name: 'gold',     color: 0xffff00, icon: '🪙', effect: 'gold'     },
+    // Special tile types — placed by skills, not generated randomly
+    { name: 'frost', color: 0x88ddff, icon: '❄️', effect: 'frost', special: true, textureKey: 'special_frost' },
+    { name: 'zap',   color: 0xffee44, icon: '⚡', effect: 'zap',   special: true, textureKey: 'special_zap'   },
+    { name: 'flame', color: 0xff6600, icon: '🔥', effect: 'flame', special: true, textureKey: 'special_flame' },
 ];
 
 const MONSTER_NAMES = ['Kobold', 'Goblin', 'Orc', 'Troll', 'Warlock', 'Skeleton', 'Lich', 'Bandit'];
@@ -1017,7 +1021,6 @@ class Match3Scene extends Phaser.Scene {
         this.skillCharge = this.createInitialSkillCharge();
         this.cloakOfFlamesActive = false;
         this.cloakOfFlamesDamage = 0;
-        this.specialTiles = {}; // key: "x,y" → { type: 'frost'|'zap'|'flame', x, y }
         this.headhunterKills = 0;
         this.stolenEnemyAffixes = [];
 
@@ -1095,7 +1098,6 @@ class Match3Scene extends Phaser.Scene {
         this.skillCharge = this.createInitialSkillCharge();
         this.cloakOfFlamesActive = false;
         this.cloakOfFlamesDamage = 0;
-        this.specialTiles = {};
         this.skillsInventoryGems = this.createSkillGemInventoryPool();
         this.generateStoreInventory();
         // Reset state flags that persist across scene.restart()
@@ -1621,24 +1623,22 @@ class Match3Scene extends Phaser.Scene {
 
     showTileInfoPopup(x, y) {
         this.hideTileInfoPopup();
-        const tileType = this.grid[y] && this.grid[y][x];
-        const stKey = `${x},${y}`;
-        const st = this.specialTiles && this.specialTiles[stKey];
+        if (!this.grid[y]) return;
+        const tileType = this.grid[y][x];
+        if (tileType < 0 || !TILE_TYPES[tileType]) return;
+        const info = TILE_TYPES[tileType];
 
         let title, desc;
-        if (st) {
-            if (st.type === 'frost') {
-                title = '❄️ Frost Tile';
-                desc = 'Boosts cold damage by 4% while on the board. Deals cold damage when matched.';
-            } else if (st.type === 'zap') {
-                title = '⚡ Zap Tile';
-                desc = 'Tap to explode — deals lightning damage and destroys 4 adjacent tiles. Also deals lightning damage when matched.';
-            } else {
-                title = '🔥 Flame Tile';
-                desc = '50% chance each turn to spread fire to an adjacent tile. Deals heavy fire damage when matched.';
-            }
-        } else if (tileType !== undefined && tileType >= 0 && TILE_TYPES[tileType]) {
-            const info = TILE_TYPES[tileType];
+        if (info.effect === 'frost') {
+            title = '❄️ Frost Tile';
+            desc = 'Boosts cold damage by 4% while on the board. Deals cold damage when matched.';
+        } else if (info.effect === 'zap') {
+            title = '⚡ Zap Tile';
+            desc = 'Tap to explode — deals lightning damage and destroys 4 adjacent tiles. Also deals lightning damage when matched.';
+        } else if (info.effect === 'flame') {
+            title = '🔥 Flame Tile';
+            desc = '50% chance each turn to spread fire to an adjacent tile. Deals heavy fire damage when matched.';
+        } else {
             const effectDesc = {
                 health:   'Restores player health when matched.',
                 magic:    'Deals magic damage when matched.',
@@ -1648,8 +1648,6 @@ class Match3Scene extends Phaser.Scene {
             };
             title = `${info.icon} ${info.name[0].toUpperCase()}${info.name.slice(1)}`;
             desc = effectDesc[info.effect] || 'Matched for its effect.';
-        } else {
-            return;
         }
 
         const W = 210, H = 86;
@@ -1778,6 +1776,9 @@ class Match3Scene extends Phaser.Scene {
         this.createSkillBar();
 
         this.showGameScreen();
+
+        // Global pointer-up: always dismiss tile info popup when finger lifts anywhere
+        this.input.on('pointerup', () => this.hideTileInfoPopup());
     }
 
     createInitialSkillLoadout() {
@@ -2065,45 +2066,41 @@ class Match3Scene extends Phaser.Scene {
 
     /** Places `count` random tiles as special tiles of the given type. */
     placeSpecialTiles(type, count) {
-        if (!this.specialTiles) this.specialTiles = {};
-        // Gather all valid tile positions that aren't already special
+        const typeIdx = { frost: 5, zap: 6, flame: 7 }[type];
+        if (typeIdx === undefined) return;
+        // Only replace normal (non-special) filled tiles
         const candidates = [];
         for (let y = 0; y < GRID_HEIGHT; y++) {
             for (let x = 0; x < GRID_WIDTH; x++) {
-                if (this.grid[y][x] >= 0 && !this.specialTiles[`${x},${y}`]) {
+                if (this.grid[y][x] >= 0 && this.grid[y][x] < 5) {
                     candidates.push({ x, y });
                 }
             }
         }
         Phaser.Utils.Array.Shuffle(candidates);
-        const chosen = candidates.slice(0, count);
-        chosen.forEach(({ x, y }) => {
-            this.specialTiles[`${x},${y}`] = { type, x, y };
+        candidates.slice(0, count).forEach(({ x, y }) => {
+            this.grid[y][x] = typeIdx;
         });
         this.renderGrid();
     }
 
     /** Returns the total cold damage % bonus from frost tiles on the board (4% each). */
     getFrostTileColdBonus() {
-        if (!this.specialTiles) return 0;
         let count = 0;
-        for (const key in this.specialTiles) {
-            if (this.specialTiles[key].type === 'frost') count++;
+        for (let y = 0; y < GRID_HEIGHT; y++) {
+            for (let x = 0; x < GRID_WIDTH; x++) {
+                if (this.grid[y] && this.grid[y][x] === 5) count++;
+            }
         }
         return count * 4; // percent
     }
 
     /** Explode a zap tile: deal lightning damage and destroy adjacent tiles. */
     handleZapTileClick(x, y) {
-        if (!this.specialTiles) return;
-        const key = `${x},${y}`;
-        if (!this.specialTiles[key] || this.specialTiles[key].type !== 'zap') return;
+        if (!this.grid[y] || this.grid[y][x] !== 6) return;
         if (this.isSwapping) return;
 
         this.isSwapping = true;
-
-        // Remove the zap tile marker
-        delete this.specialTiles[key];
 
         // Calculate lightning damage from basePower of burst-lightning skill + ranged scaling
         const gear = this.getEquippedStatTotals();
@@ -2132,8 +2129,6 @@ class Match3Scene extends Phaser.Scene {
         });
         toDestroy.forEach(({ x: tx, y: ty }) => {
             this.grid[ty][tx] = -1;
-            // Also clear any special tiles destroyed
-            if (this.specialTiles[`${tx},${ty}`]) delete this.specialTiles[`${tx},${ty}`];
         });
 
         this.updateEnemyUI();
@@ -2153,10 +2148,14 @@ class Match3Scene extends Phaser.Scene {
         });
     }
 
-    /** Each flame tile has a 50% chance to spread to a random adjacent non-special tile. */
+    /** Each flame tile has a 50% chance to spread to a random adjacent normal tile. */
     processFlameTileSpread() {
-        if (!this.specialTiles) return;
-        const flameTiles = Object.values(this.specialTiles).filter(st => st.type === 'flame');
+        const flameTiles = [];
+        for (let y = 0; y < GRID_HEIGHT; y++) {
+            for (let x = 0; x < GRID_WIDTH; x++) {
+                if (this.grid[y] && this.grid[y][x] === 7) flameTiles.push({ x, y });
+            }
+        }
         if (flameTiles.length === 0) return;
         let spread = false;
         const dirs = [{ dx: 0, dy: -1 }, { dx: 0, dy: 1 }, { dx: -1, dy: 0 }, { dx: 1, dy: 0 }];
@@ -2165,11 +2164,10 @@ class Match3Scene extends Phaser.Scene {
                 const candidates = dirs
                     .map(d => ({ x: ft.x + d.dx, y: ft.y + d.dy }))
                     .filter(p => p.x >= 0 && p.x < GRID_WIDTH && p.y >= 0 && p.y < GRID_HEIGHT
-                        && this.grid[p.y][p.x] >= 0
-                        && !this.specialTiles[`${p.x},${p.y}`]);
+                        && this.grid[p.y][p.x] >= 0 && this.grid[p.y][p.x] < 5);
                 if (candidates.length > 0) {
                     const target = candidates[Math.floor(Math.random() * candidates.length)];
-                    this.specialTiles[`${target.x},${target.y}`] = { type: 'flame', x: target.x, y: target.y };
+                    this.grid[target.y][target.x] = 7;
                     spread = true;
                 }
             }
@@ -4457,7 +4455,7 @@ class Match3Scene extends Phaser.Scene {
         if (blueChance  > 0 && roll < cumBlue)  return 1; // magic/blue
         if (goldChance  > 0 && roll < cumGold)  return 4; // gold
         if (pinkChance  > 0 && roll < cumPink)  return 0; // health/pink
-        return Phaser.Math.Between(0, TILE_TYPES.length - 1);
+        return Phaser.Math.Between(0, 4); // indices 5-7 are special tiles, never generated randomly
     }
 
     getCharacterStatBonuses() {
@@ -5591,7 +5589,6 @@ class Match3Scene extends Phaser.Scene {
         this.skillCharge = this.createInitialSkillCharge();
         this.cloakOfFlamesActive = false;
         this.cloakOfFlamesDamage = 0;
-        this.specialTiles = {};
         this.headhunterKills = 0;
         // Expire stolen affixes older than 1 previous battle (Headhunter: lasts current + next battle)
         this.stolenEnemyAffixes = (this.stolenEnemyAffixes || []).filter(
@@ -8260,10 +8257,11 @@ class Match3Scene extends Phaser.Scene {
                 rect.on('drag', (pointer) => this.handleDrag(pointer, x, y));
                 rect.on('dragend', (pointer) => this.handleDragEnd(pointer, x, y));
 
-                // Tile image icon (falls back to emoji text if image not loaded)
+                // Tile image icon (uses special textureKey for special tile types)
+                const texKey = tileInfo.special ? tileInfo.textureKey : 'tile_' + tileInfo.name;
                 let icon;
-                if (this.textures.exists('tile_' + tileInfo.name)) {
-                    icon = this.add.image(posX, posY, 'tile_' + tileInfo.name)
+                if (this.textures.exists(texKey)) {
+                    icon = this.add.image(posX, posY, texKey)
                         .setDisplaySize(TILE_SIZE - 4, TILE_SIZE - 4)
                         .setOrigin(0.5);
                 } else {
@@ -8285,7 +8283,7 @@ class Match3Scene extends Phaser.Scene {
                         this._tileHoldTimer.remove(false);
                         this._tileHoldTimer = null;
                     }
-                    this._tileHoldTimer = this.time.delayedCall(320, () => {
+                    this._tileHoldTimer = this.time.delayedCall(600, () => {
                         this._tileHoldTimer = null;
                         this.showTileInfoPopup(x, y);
                     });
@@ -8293,19 +8291,10 @@ class Match3Scene extends Phaser.Scene {
                 rect.on('pointerup', () => this.hideTileInfoPopup());
                 rect.on('pointerout', () => this.hideTileInfoPopup());
 
-                // Special tile overlay
-                const stKey = `${x},${y}`;
-                const st = this.specialTiles && this.specialTiles[stKey];
-                if (st) {
-                    const overlayKey = st.type === 'frost' ? 'special_frost'
-                        : st.type === 'zap' ? 'special_zap'
-                        : 'special_flame';
-                    // Glow colour per type
-                    const glowColor = st.type === 'frost' ? 0x88ddff
-                        : st.type === 'zap' ? 0xffee44
-                        : 0xff6600;
-                    // Circular glow tight around the golden circle of the asset
-                    const glowRadius = Math.floor((TILE_SIZE - 4) / 2) + 1; // ~24px
+                // Special tile: glow halo + zap click-to-explode
+                if (tileInfo.special) {
+                    const glowColor = tileInfo.color;
+                    const glowRadius = Math.floor((TILE_SIZE - 4) / 2) + 1;
                     const glowG = this.add.graphics().setDepth(4);
                     glowG.fillStyle(glowColor, 0.12);
                     glowG.fillCircle(posX, posY, glowRadius);
@@ -8320,25 +8309,11 @@ class Match3Scene extends Phaser.Scene {
                         repeat: -1,
                         ease: 'Sine.easeInOut'
                     });
-                    const overlay = this.textures.exists(overlayKey)
-                        ? this.add.image(posX, posY, overlayKey)
-                            .setDisplaySize(TILE_SIZE - 4, TILE_SIZE - 4)
-                            .setOrigin(0.5)
-                            .setDepth(5)
-                            .setTint(0xffffff)
-                            .setAlpha(1)
-                        : this.add.text(posX + 14, posY - 14,
-                            st.type === 'frost' ? '❄️' : st.type === 'zap' ? '⚡' : '🔥',
-                            { fontSize: '16px' }).setOrigin(0.5).setDepth(5);
-                    this.boardContainer.add(overlay);
                     this.tileSprites[y][x].glowRect = glowG;
-                    this.tileSprites[y][x].overlay = overlay;
 
-                    // Zap tiles: click to explode
-                    if (st.type === 'zap') {
+                    if (type === 6) { // zap: tap to explode
                         rect.on('pointerup', (pointer, localX, localY, event) => {
                             if (this.isSwapping) return;
-                            // Only trigger click if not a drag
                             if (this.dragStart) return;
                             event.stopPropagation();
                             this.handleZapTileClick(x, y);
@@ -8426,18 +8401,6 @@ class Match3Scene extends Phaser.Scene {
         const temp = this.grid[y1][x1];
         this.grid[y1][x1] = this.grid[y2][x2];
         this.grid[y2][x2] = temp;
-
-        // Also move any special tile markers to follow the swap
-        if (this.specialTiles) {
-            const key1 = `${x1},${y1}`;
-            const key2 = `${x2},${y2}`;
-            const st1 = this.specialTiles[key1];
-            const st2 = this.specialTiles[key2];
-            if (st1) delete this.specialTiles[key1];
-            if (st2) delete this.specialTiles[key2];
-            if (st1) this.specialTiles[key2] = { ...st1, x: x2, y: y2 };
-            if (st2) this.specialTiles[key1] = { ...st2, x: x1, y: y1 };
-        }
 
         this.renderGrid();
 
@@ -8750,37 +8713,27 @@ class Match3Scene extends Phaser.Scene {
                     healAmount += tileHeal;
                     totalPlayerHeal += tileHeal;
                 }
+                if (effect === 'frost') {
+                    const coldDmg = Math.max(3, 5 + Math.floor(gear.magic * 0.3));
+                    totalEnemyDamage += coldDmg;
+                    magicDamage += coldDmg;
+                    this.addCombatLog(`❄️ Frost tile shattered: ${coldDmg} cold dmg`, '#88ddff');
+                }
+                if (effect === 'zap') {
+                    const zapDmg = Math.max(3, 5 + Math.floor(gear.ranged * 0.3));
+                    totalEnemyDamage += zapDmg;
+                    rangedDamage += zapDmg;
+                    this.addCombatLog(`⚡ Zap tile matched: ${zapDmg} lightning dmg`, '#ffe566');
+                }
+                if (effect === 'flame') {
+                    const fireDmg = Math.max(8, 15 + Math.floor(gear.physical * 0.5));
+                    totalEnemyDamage += fireDmg;
+                    physicalDamage += fireDmg;
+                    this.addCombatLog(`🔥 Flame tile ignited: ${fireDmg} fire dmg`, '#ff6a00');
+                }
             }
             this.grid[y][x] = -1;
             this.score += 10;
-
-            // Special tile match effects
-            if (this.specialTiles) {
-                const stKey = `${x},${y}`;
-                const st = this.specialTiles[stKey];
-                if (st) {
-                    if (st.type === 'frost') {
-                        // Small cold damage per frost tile matched
-                        const coldDmg = Math.max(3, 5 + Math.floor(gear.magic * 0.3));
-                        totalEnemyDamage += coldDmg;
-                        magicDamage += coldDmg;
-                        this.addCombatLog(`❄️ Frost tile shattered: ${coldDmg} cold dmg`, '#88ddff');
-                    } else if (st.type === 'zap') {
-                        // Small lightning damage per zap tile matched
-                        const zapDmg = Math.max(3, 5 + Math.floor(gear.ranged * 0.3));
-                        totalEnemyDamage += zapDmg;
-                        rangedDamage += zapDmg;
-                        this.addCombatLog(`⚡ Zap tile matched: ${zapDmg} lightning dmg`, '#ffe566');
-                    } else if (st.type === 'flame') {
-                        // Big fire damage per flame tile matched
-                        const fireDmg = Math.max(8, 15 + Math.floor(gear.physical * 0.5));
-                        totalEnemyDamage += fireDmg;
-                        physicalDamage += fireDmg;
-                        this.addCombatLog(`🔥 Flame tile ignited: ${fireDmg} fire dmg`, '#ff6a00');
-                    }
-                    delete this.specialTiles[stKey];
-                }
-            }
         });
 
         // --- 4 and 5-tile combos: bonus damage / heal / gold boost ---
@@ -9171,23 +9124,6 @@ class Match3Scene extends Phaser.Scene {
         }
 
         this.grid = newGrid;
-
-        // Remap special tiles based on tile fall animations
-        if (this.specialTiles && Object.keys(this.specialTiles).length > 0) {
-            const newSpecialTiles = {};
-            animations.forEach(anim => {
-                const key = `${anim.x},${anim.fromY}`;
-                if (this.specialTiles[key]) {
-                    newSpecialTiles[`${anim.x},${anim.toY}`] = { ...this.specialTiles[key], x: anim.x, y: anim.toY };
-                }
-            });
-            // Preserve any specials that didn't fall (not in animations)
-            const movedFromKeys = new Set(animations.map(a => `${a.x},${a.fromY}`));
-            for (const key in this.specialTiles) {
-                if (!movedFromKeys.has(key)) newSpecialTiles[key] = this.specialTiles[key];
-            }
-            this.specialTiles = newSpecialTiles;
-        }
 
         // Animate falling tiles
         const allAnimations = [];
