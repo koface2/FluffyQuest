@@ -313,14 +313,14 @@ const ACTIVE_SKILL_GEMS = [
         tags: ['magic', 'cold', 'damage-all', 'chill']
     },
     {
-        id: 'heart-of-gold',
-        name: 'Heart of Gold',
-        tileEffect: 'gold',
+        id: 'charge',
+        name: 'Charge',
+        tileEffect: 'ranged',
         baseThreshold: 5,
-        mode: 'transform-gold-to-health',
-        basePower: 0,
+        mode: 'damage',
+        basePower: 35,
         scalingStat: 'physical',
-        tags: ['gold', 'utility', 'heal']
+        tags: ['physical', 'damage']
     },
     {
         id: 'frostbite',
@@ -469,7 +469,7 @@ const SKILL_ICON_MAP = {
     'cloak-of-flames': 'skill_cloakofflames',
     'shock-and-awe': 'skill_shockandawe',
     'blizzard': 'skill_blizzard',
-    'heart-of-gold': 'skill_heartofgold',
+    'charge': 'skill_heartofgold',
     'frostbite': 'skill_frostbite',
     'burst-lightning': 'skill_burstlightning',
     'kindling': 'skill_kindling'
@@ -2074,7 +2074,7 @@ class Match3Scene extends Phaser.Scene {
             }
         }
         if (count > 0) {
-            this.addCombatLog(`Heart of Gold: ${count} gold tile${count !== 1 ? 's' : ''} → hearts`, '#ff69b4');
+            this.addCombatLog(`Charge: ${count} gold tile${count !== 1 ? 's' : ''} → hearts`, '#ff69b4');
         }
     }
 
@@ -4783,6 +4783,11 @@ class Match3Scene extends Phaser.Scene {
             ? { stat: base.implicitStat, value: scaledBaseStats[base.implicitStat] || 1 }
             : null;
 
+        const innateStats = {};
+        Object.entries(scaledBaseStats).forEach(([stat, value]) => {
+            if (stat !== base.implicitStat) innateStats[stat] = value;
+        });
+
         const totalStats = {};
         this.mergeStats(totalStats, scaledBaseStats);
         prefixes.forEach(prefix => this.mergeStats(totalStats, prefix.stats));
@@ -4820,7 +4825,8 @@ class Match3Scene extends Phaser.Scene {
             prefixes,
             suffixes,
             legendaryAffix,
-            implicit
+            implicit,
+            innateStats
         };
     }
 
@@ -4929,6 +4935,11 @@ class Match3Scene extends Phaser.Scene {
             ? { stat: base.implicitStat, value: scaledBaseStats[base.implicitStat] || 1 }
             : null;
 
+        const innateStats = {};
+        Object.entries(scaledBaseStats).forEach(([stat, value]) => {
+            if (stat !== base.implicitStat) innateStats[stat] = value;
+        });
+
         const totalStats = {};
         this.mergeStats(totalStats, scaledBaseStats);
         prefixes.forEach(prefix => this.mergeStats(totalStats, prefix.stats));
@@ -4967,7 +4978,8 @@ class Match3Scene extends Phaser.Scene {
             prefixes,
             suffixes,
             legendaryAffix,
-            implicit
+            implicit,
+            innateStats
         };
     }
 
@@ -5592,16 +5604,8 @@ class Match3Scene extends Phaser.Scene {
             const perStatLines = [];
             if (itemImplicitKey) {
                 const newVal = item.implicit.value || 0;
-                const oldVal = equippedStats[itemImplicitKey] || 0; // compare equipped item's same stat if any
                 const label = this.getStatLabel(itemImplicitKey);
-                if (!hasEquipped || oldVal === 0) {
-                    perStatLines.push({ text: `${label}: ${newVal}`, color: '#aaddff' });
-                } else {
-                    const delta = newVal - oldVal;
-                    if (delta > 0)      perStatLines.push({ text: `${label}: ${newVal} (+${delta})`, color: '#aaddff' });
-                    else if (delta < 0) perStatLines.push({ text: `${label}: ${newVal} (${delta})`, color: '#ff9999' });
-                    else                perStatLines.push({ text: `${label}: ${newVal}`, color: '#aaddff' });
-                }
+                perStatLines.push({ text: `${label}: ${newVal}`, color: '#aaddff' });
                 perStatLines.push({ text: '──────────', color: '#555555' });
             }
 
@@ -5634,6 +5638,19 @@ class Match3Scene extends Phaser.Scene {
             card.stats.setText('');
             const equippedName = compareData.equippedName || 'empty';
             card.equippedLabel.setText(`vs: ${equippedName}`);
+
+            // Reposition rarity and lower elements to avoid overlapping a wrapped name
+            {
+                const cardCenterY = this.sys.game.config.height / 2 + 16;
+                const nameBottom = card.name.y + card.name.height / 2;
+                const defaultRarityY = cardCenterY - 68;
+                const actualRarityY = Math.max(defaultRarityY, nameBottom + 6);
+                const shift = actualRarityY - defaultRarityY;
+                card.rarity.setY(actualRarityY);
+                card.equippedLabel.setY(cardCenterY - 46 + shift);
+                card.compareLines.forEach((cl, li) => cl.setY(cardCenterY - 26 + li * 24 + shift));
+            }
+
             card.compareLines.forEach((lineObj, i) => {
                 if (i < perStatLines.length) {
                     lineObj.setText(perStatLines[i].text);
