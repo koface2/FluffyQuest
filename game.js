@@ -2013,6 +2013,20 @@ class Match3Scene extends Phaser.Scene {
             this.placeSpecialTiles(castResult.transformSpecialTiles.type, castResult.transformSpecialTiles.count);
         }
 
+        // If any board transformation created matches, resolve them before proceeding.
+        // Player keeps their turn after the cascade — enemy does NOT auto-attack afterward.
+        if ((castResult.transformGoldToHealth || castResult.transformSpecialTiles) && !this.awaitingRewardChoice) {
+            const matchData = this.findMatchData();
+            if (matchData.matched.length > 0) {
+                this.isSwapping = true;
+                this._boardEffectGrantedTurn = true;   // tell applyGravity to skip enemy attack
+                this.time.delayedCall(300, () => {
+                    this.clearMatches(matchData.matched, matchData.runs, matchData.lShapes, matchData.tCrossShapes);
+                    this.applyGravity();
+                });
+            }
+        }
+
         if (this.allEnemiesDead()) {
             if (!this.awaitingRewardChoice) {
                 this.awaitingRewardChoice = true;
@@ -2117,6 +2131,11 @@ class Match3Scene extends Phaser.Scene {
             if (target.health <= 0) this.handleEnemyDeath(target);
         }
         this.addCombatLog(`⚡ Zap tile exploded for ${zapDmg} lightning dmg!`, '#ffe566');
+
+        // Explosion visual on the zap tile itself
+        const zapWX = GRID_OFFSET_X + x * TILE_SIZE + TILE_SIZE / 2;
+        const zapWY = GRID_OFFSET_Y + y * TILE_SIZE + TILE_SIZE / 2;
+        this.spawnZapTileMatchEffect(zapWX, zapWY);
 
         // Destroy the zap tile itself and 4 adjacent tiles (no damage from adjacents)
         const toDestroy = [{ x, y }];
@@ -2727,6 +2746,135 @@ class Match3Scene extends Phaser.Scene {
             ease: 'Cubic.easeOut',
             onComplete: () => sparkle.destroy()
         });
+    }
+
+    /** Bursting ice-crystal effect for when a frost tile is matched. */
+    spawnFrostTileMatchEffect(worldX, worldY) {
+        const color = 0x88ddff;
+        const white = 0xddf4ff;
+        // Icy flash
+        const flash = this.add.rectangle(worldX, worldY, TILE_SIZE - 2, TILE_SIZE - 2, white, 0.9).setDepth(1202);
+        this.tweens.add({ targets: flash, alpha: 0, scaleX: 2.2, scaleY: 2.2, duration: 320, ease: 'Quad.easeOut', onComplete: () => flash.destroy() });
+
+        // Expanding frost rings
+        [{ stroke: 3, scale: 4.0, dur: 680, alpha: 0.95 }, { stroke: 2, scale: 2.6, dur: 520, alpha: 0.75 }].forEach(rd => {
+            const ring = this.add.circle(worldX, worldY, 10, color, 0).setStrokeStyle(rd.stroke, color, rd.alpha).setDepth(1200);
+            this.tweens.add({ targets: ring, scaleX: rd.scale, scaleY: rd.scale, alpha: 0, duration: rd.dur, ease: 'Cubic.easeOut', onComplete: () => ring.destroy() });
+        });
+
+        // Snowflake-shaped spikes (8 directions)
+        for (let i = 0; i < 8; i++) {
+            const angle = (i / 8) * Math.PI * 2;
+            const dist  = 44 + Math.random() * 24;
+            const shard = this.add.rectangle(worldX, worldY, 3, 14 + Math.random() * 8, i % 2 === 0 ? white : color, 1.0)
+                .setDepth(1199).setRotation(angle);
+            this.tweens.add({
+                targets: shard,
+                x: worldX + Math.cos(angle) * dist,
+                y: worldY + Math.sin(angle) * dist,
+                alpha: 0,
+                scaleX: 0.2,
+                scaleY: 0.2,
+                duration: 480 + Math.random() * 200,
+                ease: 'Quad.easeOut',
+                onComplete: () => shard.destroy()
+            });
+        }
+
+        // Floating snowflake emoji
+        const flake = this.add.text(worldX, worldY - 4, '❄️', { fontSize: '22px' }).setOrigin(0.5).setDepth(1205);
+        this.tweens.add({ targets: flake, y: worldY - 36, alpha: 0, duration: 700, ease: 'Quad.easeOut', onComplete: () => flake.destroy() });
+
+        // Central sparkle
+        const sparkle = this.add.circle(worldX, worldY, 8, 0xffffff, 1.0).setDepth(1203);
+        this.tweens.add({ targets: sparkle, scaleX: 2.8, scaleY: 2.8, alpha: 0, duration: 380, ease: 'Cubic.easeOut', onComplete: () => sparkle.destroy() });
+    }
+
+    /** Crackling lightning burst for when a zap tile is matched or activated. */
+    spawnZapTileMatchEffect(worldX, worldY) {
+        const color = 0xffee44;
+        // Bright white-yellow flash
+        const flash = this.add.rectangle(worldX, worldY, TILE_SIZE - 2, TILE_SIZE - 2, 0xffffff, 1.0).setDepth(1202);
+        this.tweens.add({ targets: flash, alpha: 0, scaleX: 2.4, scaleY: 2.4, duration: 280, ease: 'Quad.easeOut', onComplete: () => flash.destroy() });
+
+        // Yellow expanding ring
+        [{ stroke: 4, scale: 4.5, dur: 700, alpha: 1.0 }, { stroke: 2, scale: 3.0, dur: 540, alpha: 0.8 }].forEach(rd => {
+            const ring = this.add.circle(worldX, worldY, 10, color, 0).setStrokeStyle(rd.stroke, color, rd.alpha).setDepth(1200);
+            this.tweens.add({ targets: ring, scaleX: rd.scale, scaleY: rd.scale, alpha: 0, duration: rd.dur, ease: 'Cubic.easeOut', onComplete: () => ring.destroy() });
+        });
+
+        // Jagged lightning spikes (6 directions)
+        for (let i = 0; i < 6; i++) {
+            const angle = (i / 6) * Math.PI * 2 + Math.random() * 0.3;
+            const segments = 4;
+            const gfx = this.add.graphics().setDepth(1199);
+            gfx.lineStyle(2, i % 2 === 0 ? 0xffffff : color, 1);
+            gfx.beginPath();
+            gfx.moveTo(worldX, worldY);
+            let cx = worldX, cy = worldY;
+            for (let s = 0; s < segments; s++) {
+                const t = (s + 1) / segments;
+                const dist = 38 + Math.random() * 26;
+                cx = worldX + Math.cos(angle) * dist * t + Phaser.Math.Between(-8, 8);
+                cy = worldY + Math.sin(angle) * dist * t + Phaser.Math.Between(-8, 8);
+                gfx.lineTo(cx, cy);
+            }
+            gfx.strokePath();
+            this.tweens.add({ targets: gfx, alpha: 0, duration: 360 + Math.random() * 150, ease: 'Quad.easeOut', onComplete: () => gfx.destroy() });
+        }
+
+        // Lightning bolt emoji
+        const bolt = this.add.text(worldX, worldY - 4, '⚡', { fontSize: '24px' }).setOrigin(0.5).setDepth(1205);
+        this.tweens.add({ targets: bolt, y: worldY - 40, alpha: 0, duration: 650, ease: 'Quad.easeOut', onComplete: () => bolt.destroy() });
+
+        // Central sparkle
+        const sparkle = this.add.circle(worldX, worldY, 9, 0xffffff, 1.0).setDepth(1203);
+        this.tweens.add({ targets: sparkle, scaleX: 3.0, scaleY: 3.0, alpha: 0, duration: 350, ease: 'Cubic.easeOut', onComplete: () => sparkle.destroy() });
+    }
+
+    /** Ember shower + fire burst for when a flame tile is matched. */
+    spawnFlameTileMatchEffect(worldX, worldY) {
+        const color  = 0xff6600;
+        const orange = 0xff9900;
+        const yellow = 0xffee00;
+        // Hot white flash
+        const flash = this.add.rectangle(worldX, worldY, TILE_SIZE - 2, TILE_SIZE - 2, 0xffffff, 1.0).setDepth(1202);
+        this.tweens.add({ targets: flash, alpha: 0, scaleX: 2.6, scaleY: 2.6, duration: 340, ease: 'Quad.easeOut', onComplete: () => flash.destroy() });
+
+        // Fire-colored rings
+        [[0xffffff, 3, 4.5, 720], [orange, 3, 3.2, 580], [color, 2, 2.2, 460]].forEach(([c, stroke, scale, dur]) => {
+            const ring = this.add.circle(worldX, worldY, 10, c, 0).setStrokeStyle(stroke, c, 0.95).setDepth(1200);
+            this.tweens.add({ targets: ring, scaleX: scale, scaleY: scale, alpha: 0, duration: dur, ease: 'Cubic.easeOut', onComplete: () => ring.destroy() });
+        });
+
+        // Ember shards shooting upward with gravity
+        const emberColors = [color, orange, yellow, 0xffffff];
+        for (let i = 0; i < 12; i++) {
+            const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.4;  // mostly upward spread
+            const dist  = 36 + Math.random() * 44;
+            const c     = emberColors[Math.floor(Math.random() * emberColors.length)];
+            const sz    = 4 + Math.random() * 7;
+            const ember = this.add.rectangle(worldX, worldY, sz, sz * 0.6, c, 1.0).setDepth(1199).setRotation(Math.random() * Math.PI * 2);
+            this.tweens.add({
+                targets: ember,
+                x: worldX + Math.cos(angle) * dist,
+                y: worldY + Math.sin(angle) * dist + 18,  // slight fall arc
+                alpha: 0,
+                scaleX: 0.1,
+                scaleY: 0.1,
+                duration: 500 + Math.random() * 280,
+                ease: 'Quad.easeOut',
+                onComplete: () => ember.destroy()
+            });
+        }
+
+        // Fire emoji
+        const fire = this.add.text(worldX, worldY - 4, '🔥', { fontSize: '24px' }).setOrigin(0.5).setDepth(1205);
+        this.tweens.add({ targets: fire, y: worldY - 42, alpha: 0, duration: 720, ease: 'Quad.easeOut', onComplete: () => fire.destroy() });
+
+        // Central hot sparkle
+        const sparkle = this.add.circle(worldX, worldY, 9, 0xffffff, 1.0).setDepth(1203);
+        this.tweens.add({ targets: sparkle, scaleX: 3.2, scaleY: 3.2, alpha: 0, duration: 400, ease: 'Cubic.easeOut', onComplete: () => sparkle.destroy() });
     }
 
     /** Draws a jagged lightning bolt from (fromX,fromY) to (toX,toY) and fades it. */
@@ -6519,6 +6667,8 @@ class Match3Scene extends Phaser.Scene {
                 cell.cellIcon.setVisible(true);
             }
             cell.cellName.setText(display.name);
+            // Shrink font for longer names so the full name fits within the cell's 2 allowed lines
+            cell.cellName.setFontSize(display.name.length > 13 ? '11px' : '13px');
             cell.cellBg.setStrokeStyle(2, 0x2a3d50, 1);
             cell.cellBg.setFillStyle(0x141e2a, 1);
 
@@ -6821,9 +6971,9 @@ class Match3Scene extends Phaser.Scene {
         const invCellSpacing = Math.floor(width / invCols);  // 97px each
         const invCellRadius = 36;
         this._invCellImageSize = invCellRadius * 2 - 8;  // 64px — reused in refreshGemInventoryPopup
-        // Card: center at (width/2, height/2 - 10), height 480
+        // Card: center at (width/2, height/2 - 10), height 520
         const invCardCenterY = height / 2 - 10;
-        const invCardHalfH  = 240;
+        const invCardHalfH  = 260;
         const invGridTopY = invCardCenterY - invCardHalfH + 88;  // first row center
 
         const invOverlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.85)
@@ -6866,7 +7016,7 @@ class Match3Scene extends Phaser.Scene {
         for (let row = 0; row < invRows; row++) {
             for (let col = 0; col < invCols; col++) {
                 const cx = Math.round((col + 0.5) * invCellSpacing);
-                const cy = invGridTopY + row * 96;
+                const cy = invGridTopY + row * 110;
 
                 const cellBg = this.add.circle(cx, cy, invCellRadius, 0x141e2a, 1)
                     .setStrokeStyle(2, 0x2a3d50)
@@ -6880,7 +7030,7 @@ class Match3Scene extends Phaser.Scene {
 
                 const cellName = this.add.text(cx, cy + invCellRadius + 2, '', {
                     fontSize: '13px', color: '#cccccc',
-                    maxLines: 1,
+                    maxLines: 2,
                     align: 'center',
                     wordWrap: { width: invCellSpacing - 6, useAdvancedWrap: true }
                 }).setOrigin(0.5, 0);
@@ -8717,18 +8867,21 @@ class Match3Scene extends Phaser.Scene {
                     const coldDmg = Math.max(3, 5 + Math.floor(gear.magic * 0.3));
                     totalEnemyDamage += coldDmg;
                     magicDamage += coldDmg;
+                    this.spawnFrostTileMatchEffect(shatterWX, shatterWY);
                     this.addCombatLog(`❄️ Frost tile shattered: ${coldDmg} cold dmg`, '#88ddff');
                 }
                 if (effect === 'zap') {
                     const zapDmg = Math.max(3, 5 + Math.floor(gear.ranged * 0.3));
                     totalEnemyDamage += zapDmg;
                     rangedDamage += zapDmg;
+                    this.spawnZapTileMatchEffect(shatterWX, shatterWY);
                     this.addCombatLog(`⚡ Zap tile matched: ${zapDmg} lightning dmg`, '#ffe566');
                 }
                 if (effect === 'flame') {
                     const fireDmg = Math.max(8, 15 + Math.floor(gear.physical * 0.5));
                     totalEnemyDamage += fireDmg;
                     physicalDamage += fireDmg;
+                    this.spawnFlameTileMatchEffect(shatterWX, shatterWY);
                     this.addCombatLog(`🔥 Flame tile ignited: ${fireDmg} fire dmg`, '#ff6a00');
                 }
             }
@@ -9194,20 +9347,25 @@ class Match3Scene extends Phaser.Scene {
                     });
                 } else {
                     this.isSwapping = false;
-                        // Enemy attacks only after player's turn is fully complete
-                        // Add a longer delay between hero attack and enemy attack for better pacing
+                        // Enemy attacks only after player's turn is fully complete.
+                        // If a board-effect skill triggered this cascade, the player keeps their turn.
                         if (!this.allEnemiesDead()) {
-                            // of Haste: chance to skip enemy turn and let player go again
-                            const gearForTurn = this.getEquippedStatTotals();
-                            if (gearForTurn.extraTurnChance > 0 && Math.random() * 100 < gearForTurn.extraTurnChance) {
-                                this.addCombatLog(`⚡ Haste! Extra turn granted.`, '#ffe566');
-                                this.showCombatMessage('EXTRA TURN!', '#ffe566',
-                                    GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) / 2, GRID_OFFSET_Y - 40);
-                                // Skip enemy attack — player gets another turn immediately
+                            if (this._boardEffectGrantedTurn) {
+                                this._boardEffectGrantedTurn = false;
+                                // No enemy attack — player gets to move next
                             } else {
-                                this.time.delayedCall(700, () => {
-                                    this.enemyAttack();
-                                });
+                                // of Haste: chance to skip enemy turn and let player go again
+                                const gearForTurn = this.getEquippedStatTotals();
+                                if (gearForTurn.extraTurnChance > 0 && Math.random() * 100 < gearForTurn.extraTurnChance) {
+                                    this.addCombatLog(`⚡ Haste! Extra turn granted.`, '#ffe566');
+                                    this.showCombatMessage('EXTRA TURN!', '#ffe566',
+                                        GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) / 2, GRID_OFFSET_Y - 40);
+                                    // Skip enemy attack — player gets another turn immediately
+                                } else {
+                                    this.time.delayedCall(700, () => {
+                                        this.enemyAttack();
+                                    });
+                                }
                             }
                         }
                 }
@@ -9221,6 +9379,19 @@ class Match3Scene extends Phaser.Scene {
 
         // Flame tiles spread: each flame tile has 50% chance to convert an adjacent tile
         this.processFlameTileSpread();
+
+        // If flame spread created any matches, resolve them before the enemy attacks
+        {
+            const matchData = this.findMatchData();
+            if (matchData.matched.length > 0) {
+                this.isSwapping = true;
+                this.time.delayedCall(300, () => {
+                    this.clearMatches(matchData.matched, matchData.runs, matchData.lShapes, matchData.tCrossShapes);
+                    this.applyGravity();
+                });
+                return;
+            }
+        }
 
         // Cloak of Flames — burn all enemies before they attack
         if (this.cloakOfFlamesActive) {
