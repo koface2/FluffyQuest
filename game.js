@@ -535,8 +535,8 @@ const TALENT_TREE_NODES = [
     { id:  38, name: "Block Chance"        , icon: "\ud83d\udd30", stat: "blockChance"         , value:   2, shortDesc: "+2% Block Chance"                    ,
       desc: "+2% Block Chance."                                                             ,
       x:   375, y:    98, color: 0xFF4747, prereqs: [36] },
-    { id:  39, name: "Strength"            , icon: "\u2694\ufe0f", stat: "strength"            , value:   5, shortDesc: "+5 Strength"                         ,
-      desc: "+5 Strength."                                                                  ,
+    { id:  39, name: "Health Regen"         , icon: "\ud83d\udc9a", stat: "healthRegen"         , value:   1, shortDesc: "+1 Health Regen"                    ,
+      desc: "+1 HP regenerated at the end of each turn."                                    ,
       x:   414, y:    98, color: 0xFF4747, prereqs: [38] },
     { id:  40, name: "Block Chance"        , icon: "\ud83d\udd30", stat: "blockChance"         , value:   2, shortDesc: "+2% Block Chance"                    ,
       desc: "+2% Block Chance."                                                             ,
@@ -808,6 +808,44 @@ const TALENT_TREE_NODES = [
     { id: 174, name: "Conduit"             , icon: "\u2b50", stat: "conduit"             , value:   1, shortDesc: "50% ranged dmg -> lightning"          ,
       desc: "50% of Ranged damage converts to Lightning, gaining +Lightning Damage bonuses."  ,
       x:   638, y:   605, color: 0x0FB836, prereqs: [171], isKeystone: true },
+
+    // --- New nodes from config update ---
+    { id: 156, name: "Cold Damage"         , icon: "\u2744\ufe0f", stat: "coldDamage"           , value:   4, shortDesc: "+4% Cold Damage"                     ,
+      desc: "+4% Cold Damage."                                                              ,
+      x:   336, y:   809, color: 0x1131D1, prereqs: [140] },
+    { id: 175, name: "Health Regen"        , icon: "\ud83d\udc9a", stat: "healthRegen"          , value:   1, shortDesc: "+1 Health Regen"                     ,
+      desc: "+1 HP regenerated at the end of each turn."                                   ,
+      x:   501, y:   109, color: 0xFF4747, prereqs: [40] },
+    { id: 176, name: "Strength"            , icon: "\u2694\ufe0f", stat: "strength"            , value:  10, shortDesc: "+10 Strength"                        ,
+      desc: "+10 Strength."                                                                 ,
+      x:   501, y:   148, color: 0xFF4747, prereqs: [175] },
+    { id: 177, name: "Health"              , icon: "\u2764\ufe0f", stat: "health"              , value:   2, shortDesc: "+2% Max Health"                      ,
+      desc: "+2% Max Health."                                                               ,
+      x:   501, y:   187, color: 0xFF4747, prereqs: [176] },
+    { id: 178, name: "Health Regen"        , icon: "\ud83d\udc9a", stat: "healthRegen"          , value:   1, shortDesc: "+1 Health Regen"                     ,
+      desc: "+1 HP regenerated at the end of each turn."                                   ,
+      x:   540, y:   187, color: 0xFF4747, prereqs: [177] },
+    { id: 179, name: "Health"              , icon: "\u2764\ufe0f", stat: "health"              , value:   2, shortDesc: "+2% Max Health"                      ,
+      desc: "+2% Max Health."                                                               ,
+      x:   579, y:   187, color: 0xFF4747, prereqs: [178] },
+    { id: 180, name: "Mortal Constitution" , icon: "\ud83d\udcaa", stat: "mortalConstitution"   , value:   1, shortDesc: "Restore 20% HP after battle"          ,
+      desc: "Restore 20% of max HP after each battle. Cannot use Energy Shield."           ,
+      x:   647, y:   177, color: 0xFF4747, prereqs: [179], isKeystone: true },
+    { id: 181, name: "Block Chance"        , icon: "\ud83d\udd30", stat: "blockChance"         , value:   2, shortDesc: "+2% Block Chance"                    ,
+      desc: "+2% Block Chance."                                                             ,
+      x:   501, y:    70, color: 0xFF4747, prereqs: [175] },
+    { id: 183, name: "Shield Damage"       , icon: "\ud83d\udee1\ufe0f", stat: "shieldDamage"  , value:   4, shortDesc: "+4% Damage (shield equipped)"         ,
+      desc: "+4% damage to all attacks while a Shield is equipped in your offhand."        ,
+      x:   501, y:    31, color: 0xFF4747, prereqs: [181] },
+    { id: 184, name: "Block Chance"        , icon: "\ud83d\udd30", stat: "blockChance"         , value:   2, shortDesc: "+2% Block Chance"                    ,
+      desc: "+2% Block Chance."                                                             ,
+      x:   540, y:    31, color: 0xFF4747, prereqs: [183] },
+    { id: 185, name: "Shield Damage"       , icon: "\ud83d\udee1\ufe0f", stat: "shieldDamage"  , value:   4, shortDesc: "+4% Damage (shield equipped)"         ,
+      desc: "+4% damage to all attacks while a Shield is equipped in your offhand."        ,
+      x:   579, y:    31, color: 0xFF4747, prereqs: [184] },
+    { id: 186, name: "Lord of Thorns"      , icon: "\ud83c\udf35", stat: "lordOfThorns"        , value:   1, shortDesc: "Deal physical dmg on block"           ,
+      desc: "When you Block an attack, deal physical damage equal to the enemy's attack back to them."  ,
+      x:   647, y:    21, color: 0xFF4747, prereqs: [185], isKeystone: true },
 ];
 
 const TALENT_TREE_CONNECTIONS = [
@@ -919,6 +957,20 @@ const TALENT_TREE_CONNECTIONS = [
     { from: 170, to: 173 },
     { from: 173, to: 171 },
     { from: 171, to: 174 },
+    // --- New connections from config update ---
+    { from:  40, to: 175 },
+    { from: 175, to: 176 },
+    { from: 176, to: 177 },
+    { from: 177, to: 178 },
+    { from: 178, to: 179 },
+    { from: 179, to: 180 },
+    { from: 175, to: 181 },
+    { from: 181, to: 183 },
+    { from: 183, to: 184 },
+    { from: 184, to: 185 },
+    { from: 185, to: 186 },
+    { from: 140, to: 156 },
+    { from: 156, to: 149 },
 ];
 
 // Build a fast lookup map for talent nodes by ID
@@ -4525,50 +4577,56 @@ class Match3Scene extends Phaser.Scene {
             armor: 0, health: 0, energyShield: 0, evasion: 0,
             blockChance: 0, redTileChance: 0, greenTileChance: 0, blueTileChance: 0,
             allDamage: 0, fireDamage: 0, coldDamage: 0, lightningDamage: 0, critChance: 0,
+            healthRegen: 0, shieldDamage: 0,
             juggernaut: false, seeRed: false, turningGreen: false, feelingBlue: false,
             parry: false, energyForm: false, blueBlooded: false,
             polarVortex: false, heatwave: false, stormyNight: false,
-            frostMage: false, burningMan: false, conduit: false
+            frostMage: false, burningMan: false, conduit: false,
+            mortalConstitution: false, lordOfThorns: false
         };
         this.allocatedTalents.forEach(nodeId => {
             const node = TALENT_NODE_MAP.get(nodeId);
             if (!node) return;
             switch (node.stat) {
-                case 'physicalDamage':  b.physicalDamage  += node.value; break;
-                case 'magicDamage':     b.magicDamage     += node.value; break;
-                case 'rangedDamage':    b.rangedDamage    += node.value; break;
-                case 'fireDamage':      b.fireDamage      += node.value;
-                                        b.physicalDamage  += node.value; break;
-                case 'coldDamage':      b.coldDamage      += node.value;
-                                        b.magicDamage     += node.value; break;
-                case 'lightningDamage': b.lightningDamage += node.value;
-                                        b.rangedDamage    += node.value; break;
-                case 'allDamage':       b.allDamage       += node.value;
-                                        b.physicalDamage  += node.value;
-                                        b.magicDamage     += node.value;
-                                        b.rangedDamage    += node.value; break;
-                case 'armor':           b.armor           += node.value; break;
-                case 'health':          b.health          += node.value; break;
-                case 'energyShield':    b.energyShield    += node.value; break;
-                case 'evasion':         b.evasion         += node.value; break;
-                case 'blockChance':     b.blockChance     += node.value; break;
-                case 'redTileChance':   b.redTileChance   += node.value; break;
-                case 'greenTileChance': b.greenTileChance += node.value; break;
-                case 'blueTileChance':  b.blueTileChance  += node.value; break;
-                case 'critChance':      b.critChance      += node.value; break;
-                case 'juggernaut':      b.juggernaut      = true; break;
-                case 'seeRed':          b.seeRed          = true; break;
-                case 'turningGreen':    b.turningGreen    = true; break;
-                case 'feelingBlue':     b.feelingBlue     = true; break;
-                case 'parry':           b.parry           = true; break;
-                case 'energyForm':      b.energyForm      = true; break;
-                case 'blueBlooded':     b.blueBlooded     = true; break;
-                case 'polarVortex':     b.polarVortex     = true; b.coldDamage    += 12; break;
-                case 'heatwave':        b.heatwave        = true; b.fireDamage    += 12; break;
-                case 'stormyNight':     b.stormyNight     = true; b.lightningDamage+=12; break;
-                case 'frostMage':       b.frostMage       = true; break; // 50% magic → cold in combat
-                case 'burningMan':      b.burningMan      = true; break; // 50% physical → fire in combat
-                case 'conduit':         b.conduit         = true; break; // 50% ranged → lightning in combat
+                case 'physicalDamage':      b.physicalDamage      += node.value; break;
+                case 'magicDamage':         b.magicDamage         += node.value; break;
+                case 'rangedDamage':        b.rangedDamage        += node.value; break;
+                case 'fireDamage':          b.fireDamage          += node.value;
+                                            b.physicalDamage      += node.value; break;
+                case 'coldDamage':          b.coldDamage          += node.value;
+                                            b.magicDamage         += node.value; break;
+                case 'lightningDamage':     b.lightningDamage     += node.value;
+                                            b.rangedDamage        += node.value; break;
+                case 'allDamage':           b.allDamage           += node.value;
+                                            b.physicalDamage      += node.value;
+                                            b.magicDamage         += node.value;
+                                            b.rangedDamage        += node.value; break;
+                case 'armor':               b.armor               += node.value; break;
+                case 'health':              b.health              += node.value; break;
+                case 'energyShield':        b.energyShield        += node.value; break;
+                case 'evasion':             b.evasion             += node.value; break;
+                case 'blockChance':         b.blockChance         += node.value; break;
+                case 'redTileChance':       b.redTileChance       += node.value; break;
+                case 'greenTileChance':     b.greenTileChance     += node.value; break;
+                case 'blueTileChance':      b.blueTileChance      += node.value; break;
+                case 'critChance':          b.critChance          += node.value; break;
+                case 'healthRegen':         b.healthRegen         += node.value; break;
+                case 'shieldDamage':        b.shieldDamage        += node.value; break;
+                case 'juggernaut':          b.juggernaut          = true; break;
+                case 'seeRed':              b.seeRed              = true; break;
+                case 'turningGreen':        b.turningGreen        = true; break;
+                case 'feelingBlue':         b.feelingBlue         = true; break;
+                case 'parry':               b.parry               = true; break;
+                case 'energyForm':          b.energyForm          = true; break;
+                case 'blueBlooded':         b.blueBlooded         = true; break;
+                case 'polarVortex':         b.polarVortex         = true; b.coldDamage      += 12; break;
+                case 'heatwave':            b.heatwave            = true; b.fireDamage      += 12; break;
+                case 'stormyNight':         b.stormyNight         = true; b.lightningDamage += 12; break;
+                case 'frostMage':           b.frostMage           = true; break; // 50% magic → cold in combat
+                case 'burningMan':          b.burningMan          = true; break; // 50% physical → fire in combat
+                case 'conduit':             b.conduit             = true; break; // 50% ranged → lightning in combat
+                case 'mortalConstitution':  b.mortalConstitution  = true; break;
+                case 'lordOfThorns':        b.lordOfThorns        = true; break;
             }
         });
         return b;
@@ -4633,6 +4691,7 @@ class Match3Scene extends Phaser.Scene {
         const charBonuses = this.getCharacterStatBonuses();
         const baseES = charBonuses.energyShield + gear.energyShield;
         const tb = this.getTalentPercentBonuses();
+        if (tb.mortalConstitution) return 0;
         return Math.floor(baseES * (1 + tb.energyShield / 100));
     }
 
@@ -5433,7 +5492,7 @@ class Match3Scene extends Phaser.Scene {
             color: '#ffd166',
             fontStyle: 'bold'
         }).setOrigin(0.5);
-        this.rewardLootInfoText = this.add.text(width / 2, 70, '', {
+        this.rewardLootInfoText = this.add.text(width / 2, 68, '', {
             fontSize: '12px',
             color: '#9be7ff'
         }).setOrigin(0.5);
@@ -5441,82 +5500,88 @@ class Match3Scene extends Phaser.Scene {
         this.rewardScreenGroup.add([bg, panel, title, this.rewardLootInfoText]);
 
         this.rewardCards = [];
-        const cardWidth = 124;
-        const cardHeight = 330;
-        const spacing = 6;
-        const startX = (width - (cardWidth * 3 + spacing * 2)) / 2 + cardWidth / 2;
+        // Horizontal card layout: wide cards stacked vertically
+        const cardWidth = 370;
+        const cardHeight = 166;
+        const spacing = 9;
+        const startY = 85;
+        const cx = width / 2;
+        const iconX = cx - 148;          // left column: icon
+        const textLeft = cx - 106;       // text column start
+        const textWrap = cardWidth - 116; // wrap width for text column
 
         for (let i = 0; i < 3; i++) {
-            const centerX = startX + i * (cardWidth + spacing);
-            const centerY = height / 2 + 16;
+            const cy = startY + i * (cardHeight + spacing) + cardHeight / 2;
 
-            const cardBg = this.add.rectangle(centerX, centerY, cardWidth, cardHeight, 0x2a2a2a, 1).setStrokeStyle(2, 0x999999);
-            const icon = this.add.text(centerX, centerY - 122, '', { fontSize: '28px' }).setOrigin(0.5);
-            const name = this.add.text(centerX, centerY - 93, '', {
-                fontSize: '13px',
+            const cardBg = this.add.rectangle(cx, cy, cardWidth, cardHeight, 0x2a2a2a, 1).setStrokeStyle(2, 0x999999);
+            const icon = this.add.text(iconX, cy - 18, '', { fontSize: '38px' }).setOrigin(0.5);
+            const name = this.add.text(textLeft, cy - 60, '', {
+                fontSize: '14px',
                 fontFamily: 'Georgia, Verdana, sans-serif',
                 color: '#ffffff',
                 fontStyle: 'bold',
-                align: 'center',
-                wordWrap: { width: cardWidth - 14, useAdvancedWrap: true }
-            }).setOrigin(0.5);
-            const rarity = this.add.text(centerX, centerY - 68, '', {
-                fontSize: '12px',
+                wordWrap: { width: textWrap, useAdvancedWrap: true }
+            }).setOrigin(0, 0.5);
+            const rarity = this.add.text(textLeft, cy - 43, '', {
+                fontSize: '11px',
                 fontFamily: 'Georgia, Verdana, sans-serif',
                 color: '#ffffff'
-            }).setOrigin(0.5);
+            }).setOrigin(0, 0.5);
             // stats block hidden — compareLines carry all stat info
-            const stats = this.add.text(centerX, centerY - 2000, '', {
+            const stats = this.add.text(cx, cy - 2000, '', {
                 fontSize: '11px',
                 fontFamily: 'Verdana, Georgia, sans-serif',
                 color: '#ffd966',
                 align: 'center',
                 wordWrap: { width: cardWidth - 10, useAdvancedWrap: true }
             }).setOrigin(0.5);
-            const equippedLabel = this.add.text(centerX, centerY - 46, '', {
-                fontSize: '13px',
+            const equippedLabel = this.add.text(textLeft, cy - 28, '', {
+                fontSize: '11px',
                 fontFamily: 'Verdana, Georgia, sans-serif',
                 color: '#aaaaaa',
-                align: 'center',
-                wordWrap: { width: cardWidth - 12, useAdvancedWrap: true }
-            }).setOrigin(0.5);
+                wordWrap: { width: textWrap, useAdvancedWrap: true }
+            }).setOrigin(0, 0.5);
             const compareLines = [];
+            const colRightX = textLeft + textWrap / 2;
             for (let li = 0; li < 6; li++) {
-                const cl = this.add.text(centerX, centerY - 26 + li * 24, '', {
-                    fontSize: '12px',
+                const col = Math.floor(li / 3);
+                const row = li % 3;
+                const cl = this.add.text(col === 0 ? textLeft : colRightX, cy - 12 + row * 16, '', {
+                    fontSize: '13px',
                     fontFamily: 'Verdana, Georgia, sans-serif',
-                    color: '#8aff8a',
-                    align: 'center'
-                }).setOrigin(0.5);
+                    color: '#8aff8a'
+                }).setOrigin(0, 0.5);
                 compareLines.push(cl);
             }
 
-            const equipBtn = this.add.text(centerX, centerY + 122, 'Equip', {
-                fontSize: '12px',
+            // Buttons run along the bottom of each card
+            const btnY = cy + 62;
+            const equipBtn = this.add.text(cx - 100, btnY, 'Equip', {
+                fontSize: '13px',
                 fontFamily: 'Verdana, Georgia, sans-serif',
                 color: '#111111',
                 backgroundColor: '#5aff9c',
-                padding: { left: 5, right: 5, top: 3, bottom: 3 }
+                padding: { left: 8, right: 8, top: 4, bottom: 4 }
             }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-            const stashBtn = this.add.text(centerX - 28, centerY + 148, 'Stash', {
-                fontSize: '12px',
+            const stashBtn = this.add.text(cx, btnY, 'Stash', {
+                fontSize: '13px',
                 fontFamily: 'Verdana, Georgia, sans-serif',
                 color: '#ffffff',
                 backgroundColor: '#3b5ccc',
-                padding: { left: 5, right: 5, top: 3, bottom: 3 }
+                padding: { left: 8, right: 8, top: 4, bottom: 4 }
             }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-            const sellBtn = this.add.text(centerX + 28, centerY + 148, 'Sell', {
-                fontSize: '12px',
+            const sellBtn = this.add.text(cx + 100, btnY, 'Sell', {
+                fontSize: '13px',
                 fontFamily: 'Verdana, Georgia, sans-serif',
                 color: '#111111',
                 backgroundColor: '#ffd166',
-                padding: { left: 5, right: 5, top: 3, bottom: 3 }
+                padding: { left: 8, right: 8, top: 4, bottom: 4 }
             }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
             this.rewardScreenGroup.add([cardBg, icon, name, rarity, stats, equippedLabel, ...compareLines, equipBtn, stashBtn, sellBtn]);
-            this.rewardCards.push({ cardBg, icon, name, rarity, stats, equippedLabel, compareLines, equipBtn, stashBtn, sellBtn });
+            this.rewardCards.push({ cardBg, icon, name, rarity, stats, equippedLabel, compareLines, equipBtn, stashBtn, sellBtn, cy });
         }
     }
 
@@ -5641,14 +5706,17 @@ class Match3Scene extends Phaser.Scene {
 
             // Reposition rarity and lower elements to avoid overlapping a wrapped name
             {
-                const cardCenterY = this.sys.game.config.height / 2 + 16;
+                const cy = card.cy;
                 const nameBottom = card.name.y + card.name.height / 2;
-                const defaultRarityY = cardCenterY - 68;
-                const actualRarityY = Math.max(defaultRarityY, nameBottom + 6);
+                const defaultRarityY = cy - 43;
+                const actualRarityY = Math.max(defaultRarityY, nameBottom + 5);
                 const shift = actualRarityY - defaultRarityY;
                 card.rarity.setY(actualRarityY);
-                card.equippedLabel.setY(cardCenterY - 46 + shift);
-                card.compareLines.forEach((cl, li) => cl.setY(cardCenterY - 26 + li * 24 + shift));
+                card.equippedLabel.setY(cy - 28 + shift);
+                card.compareLines.forEach((cl, li) => {
+                    const row = li % 3;
+                    cl.setY(cy - 12 + row * 16 + shift);
+                });
             }
 
             card.compareLines.forEach((lineObj, i) => {
@@ -5772,6 +5840,15 @@ class Match3Scene extends Phaser.Scene {
         }
 
         this.refillEnergyShield();
+
+        // Mortal Constitution: restore 20% max HP after each battle (no energy shield)
+        const tb_mc = this.getTalentPercentBonuses();
+        if (tb_mc.mortalConstitution) {
+            const mcHeal = Math.floor(this.getMaxHealth() * 0.20);
+            this.player.health = Math.min(this.getMaxHealth(), this.player.health + mcHeal);
+            this.addCombatLog(`\ud83d\udcaa Mortal Constitution: restored ${mcHeal} HP`, '#ffaa55');
+        }
+
         this.createGrid();
         this.renderGrid();
         this.updateSkillBarUI();
@@ -9124,6 +9201,14 @@ class Match3Scene extends Phaser.Scene {
             magicDamage    = Math.floor(magicDamage    * stolenBonuses.damageMult);
             rangedDamage   = Math.floor(rangedDamage   * stolenBonuses.damageMult);
         }
+        // Shield Damage: bonus % damage when a Shield is equipped in the offhand
+        if (talentBonuses.shieldDamage > 0 && this.equippedItems.offhand && this.equippedItems.offhand.type === 'Shield') {
+            const shieldMult = 1 + talentBonuses.shieldDamage / 100;
+            physicalDamage = Math.floor(physicalDamage * shieldMult);
+            magicDamage    = Math.floor(magicDamage    * shieldMult);
+            rangedDamage   = Math.floor(rangedDamage   * shieldMult);
+            this.addCombatLog(`🛡️ Shield Damage: +${talentBonuses.shieldDamage}%`, '#ff9944');
+        }
         // Rupture affix bonus is factored into getCritMultiplier()
         totalEnemyDamage = physicalDamage + magicDamage + rangedDamage;
 
@@ -9243,6 +9328,13 @@ class Match3Scene extends Phaser.Scene {
         if (gear.lifeRegen > 0) {
             this.player.health = Math.min(this.getMaxHealth(), this.player.health + gear.lifeRegen);
             this.addCombatLog(`💚 Life Regen: +${gear.lifeRegen} HP`, '#44ff99');
+        }
+
+        // Talent Health Regen: flat HP per turn
+        const tb_regen = this.getTalentPercentBonuses();
+        if (tb_regen.healthRegen > 0) {
+            this.player.health = Math.min(this.getMaxHealth(), this.player.health + tb_regen.healthRegen);
+            this.addCombatLog(`💚 Health Regen: +${tb_regen.healthRegen} HP`, '#44ff99');
         }
 
         // Stolen regenerating affix: heal 8% max HP after each turn
@@ -9499,6 +9591,15 @@ class Match3Scene extends Phaser.Scene {
             if (gear.aegisAurora >= 1) {
                 this.player.health = Math.min(this.getMaxHealth(), this.player.health + 2);
                 this.addCombatLog(`🛡️ Aegis: healed 2 HP on block`, '#aaffff');
+            }
+            // Lord of Thorns: deal physical damage back when blocking
+            if (tb.lordOfThorns) {
+                const lotDmg = Math.max(1, Math.floor(enemy.attack * (1 + tb.physicalDamage / 100)));
+                this.damageEnemy(enemy, lotDmg);
+                const enemyCX = GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) * 0.75;
+                this.showCombatMessage(`THORNS -${lotDmg}`, '#ff4747', enemyCX, GRID_OFFSET_Y - 30);
+                this.addCombatLog(`🌵 Lord of Thorns: dealt ${lotDmg} physical on block`, '#ff9944');
+                if (enemy.health <= 0) this.handleEnemyDeath(enemy);
             }
             this.updatePlayerUI();
             return;
