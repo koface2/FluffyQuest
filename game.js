@@ -10005,6 +10005,24 @@ class TownScene extends Phaser.Scene {
         btnBg.on('pointerover', () => btnBg.setFillStyle(0x2d6e2d));
         btnBg.on('pointerout',  () => btnBg.setFillStyle(0x1a4d1a));
         btnBg.on('pointerup',   () => this.scene.start('Match3Scene'));
+
+        // "Talk to Clover" button — opens the rescue dialogue
+        const dlgBtnW = 220;
+        const dlgBtnH = 48;
+        const dlgBtnY = H - 164;
+
+        const dlgBtnBg = this.add.rectangle(W / 2, dlgBtnY, dlgBtnW, dlgBtnH, 0x2a1a4d, 1)
+            .setStrokeStyle(3, 0xaa88ff)
+            .setInteractive({ useHandCursor: true });
+
+        this.add.text(W / 2, dlgBtnY, '💬 Talk to Clover', {
+            fontSize: '20px', color: '#ddccff', fontStyle: 'bold',
+            stroke: '#000000', strokeThickness: 3
+        }).setOrigin(0.5);
+
+        dlgBtnBg.on('pointerover', () => dlgBtnBg.setFillStyle(0x3d2870));
+        dlgBtnBg.on('pointerout',  () => dlgBtnBg.setFillStyle(0x2a1a4d));
+        dlgBtnBg.on('pointerup',   () => this.scene.start('DialogueScene', { returnScene: 'TownScene' }));
     }
 }
 
@@ -10065,11 +10083,10 @@ class DialogueScene extends Phaser.Scene {
             .setOrigin(0.5, 1)
             .play('dlg_hero_idle');
 
-        // ── Rescued bunny — right side, flipped to face left ─────────────
-        this._ensureAnim('dlg_bunny_idle', 'bunnywarlock', 0, 5, 3);
-        this.bunnySprite = this.add.sprite(Math.round(W * 0.74), this.CHAR_Y, 'bunnywarlock')
-            .setScale(this.CHAR_SCALE)
-            .setFlipX(true)
+        // ── Rescued bunny (carrot bunny, row 4 of Rescues.png) — right side ─
+        this._ensureAnim('dlg_bunny_idle', 'rescues', 32, 39, 6);
+        this.bunnySprite = this.add.sprite(Math.round(W * 0.74), this.CHAR_Y, 'rescues')
+            .setScale(this.CHAR_SCALE * 0.65)
             .setOrigin(0.5, 1)
             .play('dlg_bunny_idle');
 
@@ -10121,10 +10138,6 @@ class DialogueScene extends Phaser.Scene {
         const isHero  = (line.speaker === 'hero');
         const activeX = isHero ? Math.round(W * 0.26) : Math.round(W * 0.74);
 
-        // Dim the inactive character, restore the active one
-        this.heroSprite.setAlpha(isHero ? 1.0 : 0.40);
-        this.bunnySprite.setAlpha(isHero ? 0.40 : 1.0);
-
         // Update name labels (show name only under the current speaker)
         this.heroNameLabel.setText(isHero ? (line.name || 'Hero')  : '');
         this.bunnyNameLabel.setText(isHero ? '' : (line.name || 'Bunny'));
@@ -10134,7 +10147,7 @@ class DialogueScene extends Phaser.Scene {
         const maxWrap  = 190;
         const tailH    = 14;
         const radius   = 10;
-        const FRAME_H  = 130; // warrior / bunnywarlock sprite frame height (px)
+        const FRAME_H  = 256; // rescues sprite frame height (px)
 
         // Sprite top = feet - frame height × scale − small gap
         const spriteTopY = this.CHAR_Y - FRAME_H * this.CHAR_SCALE - 8;
