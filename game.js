@@ -2,7 +2,8 @@ const GRID_WIDTH = 7;
 const GRID_HEIGHT = 7;
 const TILE_SIZE = 50;
 const GRID_OFFSET_X = 20;
-const GRID_OFFSET_Y = 280;
+const GRID_OFFSET_Y = 30;
+const FIGHT_PANEL_Y = 395;
 
 const TILE_TYPES = [
     { name: 'health',   color: 0xff1493, icon: '♥',  effect: 'health'   },
@@ -1247,14 +1248,14 @@ class Match3Scene extends Phaser.Scene {
                 const leechHeal = Math.max(1, Math.round(actual * gear.leech / 100));
                 this.player.health = Math.min(this.getMaxHealth(), this.player.health + leechHeal);
                 const px = GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) * 0.25;
-                this.showCombatMessage(`🩸+${leechHeal}`, '#ff88cc', px, GRID_OFFSET_Y - 30);
+                this.showCombatMessage(`🩸+${leechHeal}`, '#ff88cc', px, FIGHT_PANEL_Y + 30);
             }
         }
         if (actual > 0 && enemy.affixes && enemy.affixes.some(a => a.id === 'thorns')) {
             const reflected = Math.max(1, Math.round(actual * 0.08));
             this.player.health = Math.max(0, this.player.health - reflected);
             const px = GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) * 0.25;
-            this.showCombatMessage(`-${reflected}`, '#ff4444', px, GRID_OFFSET_Y - 30);
+            this.showCombatMessage(`-${reflected}`, '#ff4444', px, FIGHT_PANEL_Y + 30);
             this.addCombatLog(`🌵 Thorns: ${reflected} damage reflected to you`, '#ff6666');
             this.updatePlayerUI();
             // Check for death caused by thorns reflection
@@ -1294,21 +1295,22 @@ class Match3Scene extends Phaser.Scene {
 
     getEnemyPositions(count) {
         const rightCX = 293;
-        if (count === 1) return [{ x: rightCX, y: 80, scale: 1.20, barW: 166, barY: 188 }];
+        const FP = FIGHT_PANEL_Y;
+        if (count === 1) return [{ x: rightCX, y: FP + 55, scale: 1.10, barW: 166, barY: FP + 148 }];
         if (count === 2) return [
-            { x: rightCX - 34, y: 66, scale: 0.95, barW: 82, barY: 148 },
-            { x: rightCX + 34, y: 66, scale: 0.95, barW: 82, barY: 162 }
+            { x: rightCX - 34, y: FP + 45, scale: 0.90, barW: 82, barY: FP + 130 },
+            { x: rightCX + 34, y: FP + 45, scale: 0.90, barW: 82, barY: FP + 143 }
         ];
         if (count === 3) return [
-            { x: rightCX - 38, y: 54, scale: 0.84, barW: 72, barY: 120 },
-            { x: rightCX + 38, y: 54, scale: 0.84, barW: 72, barY: 134 },
-            { x: rightCX,      y: 114, scale: 0.84, barW: 72, barY: 178 }
+            { x: rightCX - 38, y: FP + 38, scale: 0.80, barW: 72, barY: FP + 110 },
+            { x: rightCX + 38, y: FP + 38, scale: 0.80, barW: 72, barY: FP + 122 },
+            { x: rightCX,      y: FP + 98, scale: 0.80, barW: 72, barY: FP + 162 }
         ];
         return [
-            { x: rightCX - 36, y: 48, scale: 0.76, barW: 66, barY: 104 },
-            { x: rightCX + 36, y: 48, scale: 0.76, barW: 66, barY: 118 },
-            { x: rightCX - 36, y: 118, scale: 0.76, barW: 66, barY: 172 },
-            { x: rightCX + 36, y: 118, scale: 0.76, barW: 66, barY: 186 }
+            { x: rightCX - 36, y: FP + 35, scale: 0.72, barW: 66, barY: FP + 96 },
+            { x: rightCX + 36, y: FP + 35, scale: 0.72, barW: 66, barY: FP + 108 },
+            { x: rightCX - 36, y: FP + 100, scale: 0.72, barW: 66, barY: FP + 158 },
+            { x: rightCX + 36, y: FP + 100, scale: 0.72, barW: 66, barY: FP + 170 }
         ];
     }
 
@@ -1705,7 +1707,7 @@ class Match3Scene extends Phaser.Scene {
 
         const W = 210, H = 86;
         const cx = this.scale.width / 2;
-        const cy = GRID_OFFSET_Y - H / 2 - 8;
+        const cy = GRID_OFFSET_Y + H / 2 + 8;
 
         const container = this.add.container(0, 0).setDepth(200);
         const bg = this.add.rectangle(cx, cy, W, H, 0x111118, 0.9)
@@ -2047,7 +2049,7 @@ class Match3Scene extends Phaser.Scene {
                 `+${castResult.healAmount}`,
                 '#44ff88',
                 GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) * 0.25,
-                GRID_OFFSET_Y - 15
+                FIGHT_PANEL_Y + 30
             );
         }
 
@@ -2185,7 +2187,7 @@ class Match3Scene extends Phaser.Scene {
         if (target) {
             this.damageEnemy(target, zapDmg);
             const enemyCenterX = GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) * 0.75;
-            this.showCombatMessage(`⚡-${zapDmg}`, '#ffe566', enemyCenterX, GRID_OFFSET_Y - 15);
+            this.showCombatMessage(`⚡-${zapDmg}`, '#ffe566', enemyCenterX, FIGHT_PANEL_Y + 30);
             if (target.health <= 0) this.handleEnemyDeath(target);
         }
         this.addCombatLog(`⚡ Zap tile exploded for ${zapDmg} lightning dmg!`, '#ffe566');
@@ -2995,7 +2997,7 @@ class Match3Scene extends Phaser.Scene {
         const x2 = GRID_OFFSET_X + GRID_WIDTH * TILE_SIZE + 20;
         const y = enemies.length > 0
             ? enemies.reduce((s, e) => s + e.pos.y, 0) / enemies.length
-            : GRID_OFFSET_Y - 40;
+            : FIGHT_PANEL_Y + 50;
         const gfx = this.add.graphics().setDepth(1096);
         gfx.lineStyle(5, 0xffdd44, 0.95);
         gfx.beginPath();
@@ -4224,17 +4226,18 @@ class Match3Scene extends Phaser.Scene {
     }
 
     createCombatLog() {
-        // Compact strip between nav buttons and grid — shows latest message, tap to open full log
-        const strip = this.add.rectangle(195, 255, 386, 22, 0x111111, 0.9)
+        // Compact strip just below grid (between grid-bottom and fight panel)
+        const logY = GRID_OFFSET_Y + GRID_HEIGHT * TILE_SIZE + 12;
+        const strip = this.add.rectangle(195, logY, 386, 22, 0x000000, 0.55)
             .setOrigin(0.5)
             .setInteractive({ useHandCursor: true })
             .on('pointerup', () => this.showCombatLogPopup());
         this.hudContainer.add(strip);
 
-        const icon = this.add.text(376, 248, '📜', { fontSize: '12px' }).setOrigin(1, 0);
+        const icon = this.add.text(376, logY - 7, '📜', { fontSize: '12px' }).setOrigin(1, 0);
         this.hudContainer.add(icon);
 
-        this.combatLogLatestText = this.add.text(10, 248, '', {
+        this.combatLogLatestText = this.add.text(10, logY - 7, '', {
             fontSize: '11px', color: '#aaffcc', fontStyle: 'bold',
             wordWrap: { width: 340 }
         });
@@ -5368,57 +5371,52 @@ class Match3Scene extends Phaser.Scene {
     }
 
     createPlayerUI() {
-        // Portrait layout: player LEFT, enemy RIGHT, both in top half above grid
+        // Portrait layout: player LEFT (below grid), enemy RIGHT (below grid)
         const leftCX = 97;
         const rightCX = 293;
         const panelW = 188;
-        const panelH = 250;
         const barW = 166;
+        const FP = FIGHT_PANEL_Y; // fight panel top in world-space
 
-        // Divider line between panels
-        this.hudContainer.add(this.add.rectangle(195, panelH / 2 + 4, 2, panelH, 0x444444, 1));
+        // Divider line between panels (spans fight area)
+        this.hudContainer.add(this.add.rectangle(195, FP + 90, 2, 185, 0x444444, 0.5));
 
         // --- Player panel (left) ---
-        this.hudContainer.add(this.add.rectangle(leftCX, panelH / 2 + 4, panelW, panelH, 0x111111, 0.9).setOrigin(0.5));
-        // Sprite-based player character
-        this.playerSprite = this.add.sprite(leftCX, 80, 'warrior').setOrigin(0.5, 0.5);
-        this.playerSprite.setScale(1.3);
+        this.playerSprite = this.add.sprite(leftCX, FP + 55, 'warrior').setOrigin(0.5, 0.5);
+        this.playerSprite.setScale(1.0);
         this.playerSprite.play('warrior_idle');
-        // Persistent fallback: non-looping animations always return to idle
         this.playerSprite.on('animationcomplete', (anim) => {
             if (!anim.key.endsWith('_idle') && !anim.key.endsWith('_death') && this.playerSprite && this.playerSprite.active) {
                 this.playerSprite.play('warrior_idle');
             }
         });
         this.hudContainer.add(this.playerSprite);
-        this.heroTitleText = this.add.text(leftCX, 140, `Hero (Lv. ${this.player.level})`, { fontSize: '17px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
+        this.heroTitleText = this.add.text(leftCX, FP + 118, `Hero (Lv. ${this.player.level})`, { fontSize: '15px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
         this.hudContainer.add(this.heroTitleText);
-        // --- Energy Shield bar (above HP) ---
-        this.playerShieldLabel = this.add.text(14, 148, 'ES', { fontSize: '9px', color: '#66aaff' });
+        // --- Energy Shield bar ---
+        this.playerShieldLabel = this.add.text(14, FP + 126, 'ES', { fontSize: '9px', color: '#66aaff' });
         this.hudContainer.add(this.playerShieldLabel);
-        this.playerShieldBarBg = this.add.rectangle(14, 157, barW, 8, 0x333344).setOrigin(0, 0.5);
+        this.playerShieldBarBg = this.add.rectangle(14, FP + 134, barW, 8, 0x333344).setOrigin(0, 0.5);
         this.hudContainer.add(this.playerShieldBarBg);
-        this.playerShieldBar = this.add.rectangle(14, 157, 0, 8, 0x3388ff).setOrigin(0, 0.5);
+        this.playerShieldBar = this.add.rectangle(14, FP + 134, 0, 8, 0x3388ff).setOrigin(0, 0.5);
         this.hudContainer.add(this.playerShieldBar);
-        this.playerShieldText = this.add.text(14 + barW / 2, 157, '', { fontSize: '7px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5);
+        this.playerShieldText = this.add.text(14 + barW / 2, FP + 134, '', { fontSize: '7px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5);
         this.hudContainer.add(this.playerShieldText);
         // --- HP bar ---
-        this.hudContainer.add(this.add.text(14, 163, 'HP', { fontSize: '11px', color: '#aaa' }));
-        this.playerHealthBarBg = this.add.rectangle(14, 174, barW, 12, 0x444444).setOrigin(0, 0.5);
+        this.hudContainer.add(this.add.text(14, FP + 140, 'HP', { fontSize: '11px', color: '#aaa' }));
+        this.playerHealthBarBg = this.add.rectangle(14, FP + 151, barW, 12, 0x444444).setOrigin(0, 0.5);
         this.hudContainer.add(this.playerHealthBarBg);
-        this.playerHealthBar = this.add.rectangle(14, 174, barW, 12, 0x00cc00).setOrigin(0, 0.5);
+        this.playerHealthBar = this.add.rectangle(14, FP + 151, barW, 12, 0x00cc00).setOrigin(0, 0.5);
         this.hudContainer.add(this.playerHealthBar);
-        this.playerHealthText = this.add.text(14 + barW / 2, 174, '', { fontSize: '9px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5);
+        this.playerHealthText = this.add.text(14 + barW / 2, FP + 151, '', { fontSize: '9px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5);
         this.hudContainer.add(this.playerHealthText);
         // --- Enemy panel (right) ---
-        this.hudContainer.add(this.add.rectangle(rightCX, panelH / 2 + 4, panelW, panelH, 0x111111, 0.9).setOrigin(0.5));
-        // Build initial enemy group
         this.encounterSize = 1;
         this.buildEnemyGroup(this.battleNumber, this.hudContainer);
         if (this.enemyEncounterLabel) this.enemyEncounterLabel.setText('');
-        // --- Gold display (under player HP bar) ---
-        this.goldDisplayIcon = this.add.text(14, 190, '\ud83e\ude99', { fontSize: '14px' }).setOrigin(0, 0.5);
-        this.goldDisplayText = this.add.text(32, 190, '0', { fontSize: '13px', color: '#ffd966', fontStyle: 'bold' }).setOrigin(0, 0.5);
+        // --- Gold display ---
+        this.goldDisplayIcon = this.add.text(14, FP + 164, '\ud83e\ude99', { fontSize: '14px' }).setOrigin(0, 0.5);
+        this.goldDisplayText = this.add.text(32, FP + 164, '0', { fontSize: '13px', color: '#ffd966', fontStyle: 'bold' }).setOrigin(0, 0.5);
         this.hudContainer.add([this.goldDisplayIcon, this.goldDisplayText]);
 
         this.createEquipmentScreen();
@@ -5426,10 +5424,10 @@ class Match3Scene extends Phaser.Scene {
         this.createTalentScreen();
         this.createStoreScreen();
         // 4 buttons evenly spaced across 390px width
-        this.createEquipmentButton(49, 210);
-        this.createSkillsButton(147, 210);
-        this.createTalentButton(245, 210);
-        this.createStoreButton(343, 210);
+        this.createEquipmentButton(49, FP + 178);
+        this.createSkillsButton(147, FP + 178);
+        this.createTalentButton(245, FP + 178);
+        this.createStoreButton(343, FP + 178);
 
         this.updatePlayerUI();
         this.updateEnemyUI();
@@ -8437,7 +8435,7 @@ class Match3Scene extends Phaser.Scene {
             this.bossMagicFindBonus = 100;
             this.addCombatLog(`✨ Boss defeated! +100 Magic Find on the next reward screen!`, '#ffb35c');
             this.showCombatMessage('✨ BOSS LOOT BONUS!', '#ffb35c',
-                GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) / 2, GRID_OFFSET_Y - 60);
+                GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) / 2, FIGHT_PANEL_Y + 30);
         }
 
         // Above-Normal rarity kill: add temporary magic find bonus scaled by rarity
@@ -8458,7 +8456,7 @@ class Match3Scene extends Phaser.Scene {
             this.stolenEnemyAffixes.push({ affix: stolen, stolenAtBattle: this.battleNumber });
             this.addCombatLog(`🗡️ Soul Steal! Stole [${stolen.icon} ${stolen.name}] — active this battle and next.`, '#ffb35c');
             this.showCombatMessage(`SOUL STEAL: ${stolen.icon} ${stolen.name}`, '#ffb35c',
-                GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) / 2, GRID_OFFSET_Y - 55);
+                GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) / 2, FIGHT_PANEL_Y + 30);
         }
     }
 
@@ -9304,7 +9302,7 @@ class Match3Scene extends Phaser.Scene {
                 if (Math.random() < evadeChance) {
                     // Enemy evades: show floating text on enemy side at same height
                     const enemyCenterX = GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) * 0.75;
-                    this.showCombatMessage('EVADE!', '#00ffcc', enemyCenterX, GRID_OFFSET_Y - 15);
+                    this.showCombatMessage('EVADE!', '#00ffcc', enemyCenterX, FIGHT_PANEL_Y + 30);
                     // Player attack animation still plays
                     if (this.playerSprite) {
                         this.playPlayerAttackAnim();
@@ -9324,9 +9322,9 @@ class Match3Scene extends Phaser.Scene {
                 // Center on enemy side
                 const enemyCenterX = GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) * 0.75;
                 if (matchAttackIsCrit && totalEnemyDamage > 0) {
-                    this.showCombatMessage(`CRIT ${totalEnemyDamage}`, '#ffff00', enemyCenterX, GRID_OFFSET_Y - 15);
+                    this.showCombatMessage(`CRIT ${totalEnemyDamage}`, '#ffff00', enemyCenterX, FIGHT_PANEL_Y + 30);
                 } else if (totalEnemyDamage > 0) {
-                    this.showCombatMessage(`-${totalEnemyDamage}`, '#ff4444', enemyCenterX, GRID_OFFSET_Y - 15);
+                    this.showCombatMessage(`-${totalEnemyDamage}`, '#ff4444', enemyCenterX, FIGHT_PANEL_Y + 30);
                 }
 
                 // Player attack animation
@@ -9510,7 +9508,7 @@ class Match3Scene extends Phaser.Scene {
                                 if (gearForTurn.extraTurnChance > 0 && Math.random() * 100 < gearForTurn.extraTurnChance) {
                                     this.addCombatLog(`⚡ Haste! Extra turn granted.`, '#ffe566');
                                     this.showCombatMessage('EXTRA TURN!', '#ffe566',
-                                        GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) / 2, GRID_OFFSET_Y - 40);
+                                        GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) / 2, FIGHT_PANEL_Y + 30);
                                     // Skip enemy attack — player gets another turn immediately
                                 } else {
                                     this.time.delayedCall(700, () => {
@@ -9613,7 +9611,7 @@ class Match3Scene extends Phaser.Scene {
             this.player.health = Math.max(0, this.player.health - curseDmg);
             this.spawnCursedAuraTick(enemy);
             const playerCenterX = GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) * 0.25;
-            this.showCombatMessage(`\u2620\ufe0f-${curseDmg}`, '#44ff66', playerCenterX, GRID_OFFSET_Y - 30);
+            this.showCombatMessage(`\u2620\ufe0f-${curseDmg}`, '#44ff66', playerCenterX, FIGHT_PANEL_Y + 30);
             this.addCombatLog(`\u2620\ufe0f ${enemy.name}'s Cursed Aura deals ${curseDmg} dark damage!`, '#44ff66');
             this.updatePlayerUI();
             if (this.player.health <= 0) {
@@ -9627,7 +9625,7 @@ class Match3Scene extends Phaser.Scene {
         if (totalBlockChance > 0 && Math.random() * 100 < totalBlockChance) {
             this.addCombatLog(`Blocked ${enemy.name}'s attack! (${totalBlockChance}%)`, '#ffd700');
             const blockX = GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) * 0.25;
-            this.showCombatMessage('BLOCK!', '#ffd700', blockX, GRID_OFFSET_Y - 15);
+            this.showCombatMessage('BLOCK!', '#ffd700', blockX, FIGHT_PANEL_Y + 30);
             this.playEnemyAttackAnim(enemy);
             // Aegis Aurora: heal 2 HP on block
             if (gear.aegisAurora >= 1) {
@@ -9639,7 +9637,7 @@ class Match3Scene extends Phaser.Scene {
                 const lotDmg = Math.max(1, Math.floor(enemy.attack * (1 + tb.physicalDamage / 100)));
                 this.damageEnemy(enemy, lotDmg);
                 const enemyCX = GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) * 0.75;
-                this.showCombatMessage(`THORNS -${lotDmg}`, '#ff4747', enemyCX, GRID_OFFSET_Y - 30);
+                this.showCombatMessage(`THORNS -${lotDmg}`, '#ff4747', enemyCX, FIGHT_PANEL_Y + 30);
                 this.addCombatLog(`🌵 Lord of Thorns: dealt ${lotDmg} physical on block`, '#ff9944');
                 if (enemy.health <= 0) this.handleEnemyDeath(enemy);
             }
@@ -9651,14 +9649,14 @@ class Match3Scene extends Phaser.Scene {
         if (Math.random() * 100 < totalEvasionChance) {
             this.addCombatLog(`Evaded ${enemy.name}'s attack! (${totalEvasionChance.toFixed(0)}%)`, '#00ffcc');
             const playerCenterX = GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) * 0.25;
-            this.showCombatMessage('EVADE!', '#00ffcc', playerCenterX, GRID_OFFSET_Y - 15);
+            this.showCombatMessage('EVADE!', '#00ffcc', playerCenterX, FIGHT_PANEL_Y + 30);
             this.playEnemyAttackAnim(enemy);
             // Parry keystone: deal ranged damage back on evade
             if (tb.parry) {
                 const parryDmg = Math.max(1, Math.floor(enemy.attack * (1 + tb.rangedDamage / 100)));
                 this.damageEnemy(enemy, parryDmg);
                 const enemyCX = GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) * 0.75;
-                this.showCombatMessage(`PARRY -${parryDmg}`, '#00ffcc', enemyCX, GRID_OFFSET_Y - 30);
+                this.showCombatMessage(`PARRY -${parryDmg}`, '#00ffcc', enemyCX, FIGHT_PANEL_Y + 30);
                 this.addCombatLog(`Parry! Dealt ${parryDmg} ranged damage back.`, '#00ffcc');
                 if (enemy.health <= 0) this.handleEnemyDeath(enemy);
             }
@@ -9702,10 +9700,10 @@ class Match3Scene extends Phaser.Scene {
         const playerCenterX = GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) * 0.25;
         if (hasElementalChaos && chosenElement) {
             this.addCombatLog(`${enemy.name}: ${chosenElement.icon} ${chosenElement.name} -${remainingDamage} HP (bypasses armor${shieldMsg})`, chosenElement.color);
-            this.showCombatMessage(`${chosenElement.icon}-${totalTaken}`, chosenElement.color, playerCenterX, GRID_OFFSET_Y - 15);
+            this.showCombatMessage(`${chosenElement.icon}-${totalTaken}`, chosenElement.color, playerCenterX, FIGHT_PANEL_Y + 30);
         } else {
             this.addCombatLog(`${enemy.name}: -${remainingDamage} HP (${armorReduction} blocked${shieldMsg})`, '#ff6666');
-            this.showCombatMessage(`-${totalTaken}`, '#ff4444', playerCenterX, GRID_OFFSET_Y - 15);
+            this.showCombatMessage(`-${totalTaken}`, '#ff4444', playerCenterX, FIGHT_PANEL_Y + 30);
         }
 
         // Stolen thorns affix: reflect 15% of received damage back to attacker
@@ -9714,7 +9712,7 @@ class Match3Scene extends Phaser.Scene {
             const tReflect = Math.max(1, Math.round(remainingDamage * 0.15));
             this.damageEnemy(enemy, tReflect);
             const enemyThornsX = GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) * 0.75;
-            this.showCombatMessage(`🌵-${tReflect}`, '#88ff44', enemyThornsX, GRID_OFFSET_Y - 30);
+            this.showCombatMessage(`🌵-${tReflect}`, '#88ff44', enemyThornsX, FIGHT_PANEL_Y + 30);
             this.addCombatLog(`🌵 Thorns reflect: ${tReflect} to ${enemy.name}`, '#88ff44');
             if (enemy.health <= 0) this.handleEnemyDeath(enemy);
         }
@@ -9905,6 +9903,7 @@ class LoadScreen extends Phaser.Scene {
         this.load.image('support_addedfire', 'assets/Skills/addedfire.png');
         this.load.image('town', 'assets/Screens/Town.png');
         this.load.image('forest', 'assets/Screens/Forest.png');
+        this.load.spritesheet('rescues', 'assets/sprites/Rescues.png', { frameWidth: 256, frameHeight: 186 });
     }
 
     create() {
@@ -9950,15 +9949,59 @@ class TownScene extends Phaser.Scene {
         bg.setScale(Math.max(scaleX, scaleY));
 
         // Title
-        this.add.text(W / 2, 80, 'Town', {
+        this.add.text(W / 2, 70, 'Town', {
             fontSize: '48px', color: '#ffe066', fontStyle: 'bold',
             stroke: '#000000', strokeThickness: 6
         }).setOrigin(0.5);
 
+        // --- Rescue animal animations (6 animals, 8 frames each, 256x186 px per frame) ---
+        // Per-animal origins derived from pixel bounding-box analysis so each animal
+        // is visually centered and lateral frame-to-frame drift is minimised.
+        const RESCUE_ORIGINS = [
+            { ox: 127 / 256, oy: 100 / 186 }, // animal 0 — content center (127,100)
+            { ox: 152 / 256, oy: 93  / 186 }, // animal 1 — shifted right in frame
+            { ox: 150 / 256, oy: 93  / 186 }, // animal 2 — similar shift
+            { ox: 0.5,       oy: 0.5        }, // animal 3 — full frame
+            { ox: 0.5,       oy: 0.5        }, // animal 4 — full frame
+            { ox: 0.5,       oy: 0.5        }, // animal 5 — full frame
+        ];
+        for (let i = 0; i < 6; i++) {
+            const key = 'rescue_' + i + '_idle';
+            if (!this.anims.exists(key)) {
+                this.anims.create({
+                    key,
+                    frames: this.anims.generateFrameNumbers('rescues', { start: i * 8, end: i * 8 + 7 }),
+                    frameRate: 5,
+                    repeat: -1
+                });
+            }
+        }
+
+        // Two rows of 3 — evenly spaced, scale 0.42 gives display ≈107×78 px each
+        const SCALE = 0.42;
+        const animalLayout = [
+            { x: 68,  y: 315 },
+            { x: 195, y: 330 },
+            { x: 322, y: 315 },
+            { x: 68,  y: 490 },
+            { x: 195, y: 505 },
+            { x: 322, y: 490 }
+        ];
+        animalLayout.forEach((pos, i) => {
+            const org = RESCUE_ORIGINS[i];
+            const sprite = this.add.sprite(pos.x, pos.y, 'rescues')
+                .setScale(SCALE)
+                .setOrigin(org.ox, org.oy);
+            // Stagger animation start so animals don't all bob in sync
+            this.time.delayedCall(i * 160, () => {
+                if (sprite && sprite.active) sprite.play('rescue_' + i + '_idle');
+            });
+        });
+
         // "Into the Forest" button
         const btnW = 220;
         const btnH = 54;
-        const btnY = H - 120;
+        const btnY = H - 100;
 
         const btnBg = this.add.rectangle(W / 2, btnY, btnW, btnH, 0x1a4d1a, 1)
             .setStrokeStyle(3, 0x66ff66)
