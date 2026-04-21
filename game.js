@@ -5456,17 +5456,17 @@ class Match3Scene extends Phaser.Scene {
             wordWrap: { width: 290 }
         }).setOrigin(0.5);
 
-        const btnBg = this.add.rectangle(W / 2, H / 2 + 55, 160, 44, 0x550000, 1)
+        const btnBg = this.add.rectangle(W / 2, H / 2 + 55, 200, 44, 0x550000, 1)
             .setStrokeStyle(2, 0xff5555)
             .setInteractive({ useHandCursor: true });
-        const btnText = this.add.text(W / 2, H / 2 + 55, 'Play Again', {
+        const btnText = this.add.text(W / 2, H / 2 + 55, 'Back to Town', {
             fontSize: '20px', color: '#ffffff', fontStyle: 'bold',
             stroke: '#000000', strokeThickness: 2
         }).setOrigin(0.5);
 
         btnBg.on('pointerover', () => btnBg.setFillStyle(0x880000));
         btnBg.on('pointerout',  () => btnBg.setFillStyle(0x550000));
-        btnBg.on('pointerup',   () => this.scene.restart());
+        btnBg.on('pointerup',   () => this.scene.start('TownScene'));
 
         this.deathScreenGroup.add([bg, panel, title, this.deathHeroText, this.deathKillerText, btnBg, btnText]);
     }
@@ -9789,7 +9789,7 @@ class BootScene extends Phaser.Scene {
     }
 
     preload() {
-        this.load.image('loadscreen', 'assets/LoadScreens/Load Screen.jpg');
+        this.load.image('loadscreen', 'assets/Screens/Load Screen.jpg');
     }
 
     create() {
@@ -9898,6 +9898,7 @@ class LoadScreen extends Phaser.Scene {
         this.load.image('support_addedlightning', 'assets/Skills/addedlightning.png');
         this.load.image('support_addedcold', 'assets/Skills/addedcold.png');
         this.load.image('support_addedfire', 'assets/Skills/addedfire.png');
+        this.load.image('town', 'assets/Screens/Town.png');
     }
 
     create() {
@@ -9922,8 +9923,49 @@ class LoadScreen extends Phaser.Scene {
         });
 
         this.input.once('pointerup', () => {
-            this.scene.start('Match3Scene');
+            this.scene.start('TownScene');
         });
+    }
+}
+
+class TownScene extends Phaser.Scene {
+    constructor() {
+        super('TownScene');
+    }
+
+    create() {
+        const W = this.sys.game.config.width;
+        const H = this.sys.game.config.height;
+
+        // Background: town image scaled to fill
+        const bg = this.add.image(W / 2, H / 2, 'town');
+        const scaleX = W / bg.width;
+        const scaleY = H / bg.height;
+        bg.setScale(Math.max(scaleX, scaleY));
+
+        // Title
+        this.add.text(W / 2, 80, 'Town', {
+            fontSize: '48px', color: '#ffe066', fontStyle: 'bold',
+            stroke: '#000000', strokeThickness: 6
+        }).setOrigin(0.5);
+
+        // "Into the Forest" button
+        const btnW = 220;
+        const btnH = 54;
+        const btnY = H - 120;
+
+        const btnBg = this.add.rectangle(W / 2, btnY, btnW, btnH, 0x1a4d1a, 1)
+            .setStrokeStyle(3, 0x66ff66)
+            .setInteractive({ useHandCursor: true });
+
+        this.add.text(W / 2, btnY, 'Into the Forest', {
+            fontSize: '22px', color: '#ffffff', fontStyle: 'bold',
+            stroke: '#000000', strokeThickness: 3
+        }).setOrigin(0.5);
+
+        btnBg.on('pointerover', () => btnBg.setFillStyle(0x2d6e2d));
+        btnBg.on('pointerout',  () => btnBg.setFillStyle(0x1a4d1a));
+        btnBg.on('pointerup',   () => this.scene.start('Match3Scene'));
     }
 }
 
@@ -9944,7 +9986,7 @@ const config = {
     input: {
         activePointers: 2
     },
-    scene: [BootScene, LoadScreen, Match3Scene]
+    scene: [BootScene, LoadScreen, TownScene, Match3Scene]
 };
 
 const game = new Phaser.Game(config);
