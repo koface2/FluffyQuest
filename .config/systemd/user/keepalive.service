@@ -1,0 +1,11 @@
+[Unit]
+Description=Keep Codespace alive
+
+[Service]
+Type=simple
+WorkingDirectory=/workspaces/FluffyQuest
+ExecStart=/bin/bash keepalive.sh
+Restart=always
+
+[Install]
+WantedBy=default.target

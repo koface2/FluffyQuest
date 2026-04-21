@@ -729,7 +729,7 @@ const TALENT_TREE_NODES = [
       x:   492, y:   264, color: 0x0FB836, prereqs: [70] },
     { id: 143, name: "Lightning Damage copy", icon: "\u26a1", stat: "lightningDamage"     , value:   4, shortDesc: "+4% Lightning Damage"                ,
       desc: "+4% Lightning Damage."                                                         ,
-      x:   570, y:   186, color: 0x0FB836, prereqs: [144] },
+      x:   570, y:   106, color: 0x0FB836, prereqs: [144] },
     { id: 144, name: "Lightning Damage"    , icon: "\u26a1", stat: "lightningDamage"     , value:   4, shortDesc: "+4% Lightning Damage"                ,
       desc: "+4% Lightning Damage."                                                         ,
       x:   531, y:   225, color: 0x0FB836, prereqs: [142] },
@@ -753,7 +753,7 @@ const TALENT_TREE_NODES = [
       x:    53, y:   -97, color: 0xFF4747, prereqs: [137], isKeystone: true },
     { id: 151, name: "Stormy Night"        , icon: "\u2b50", stat: "stormyNight"         , value:   1, shortDesc: "+12% Lightning Damage"               ,
       desc: "+12% Lightning Damage."                                                          ,
-      x:   638, y:   176, color: 0x0FB836, prereqs: [143], isKeystone: true },
+      x:   638, y:    96, color: 0x0FB836, prereqs: [143], isKeystone: true },
     { id: 152, name: "Blue Tile Chance"    , icon: "\ud83d\udd35", stat: "blueTileChance"      , value:   1, shortDesc: "+1% Blue Tile Chance"                ,
       desc: "+1% Blue Tile Chance."                                                         ,
       x:  -171, y:   303, color: 0x1131D1, prereqs: [] },
@@ -5554,13 +5554,21 @@ class Match3Scene extends Phaser.Scene {
                 compareLines.push(cl);
             }
 
+            // Innate (implicit) affix displayed in the right column, aligned with the item level row
+            const innateText = this.add.text(colRightX, cy - 43, '', {
+                fontSize: '11px',
+                fontFamily: 'Verdana, Georgia, sans-serif',
+                color: '#aaddff'
+            }).setOrigin(0, 0.5);
+
             // Buttons run along the bottom of each card
+            // Equip is on the right so right-handed players can reach it more easily
             const btnY = cy + 62;
-            const equipBtn = this.add.text(cx - 100, btnY, 'Equip', {
+            const sellBtn = this.add.text(cx - 100, btnY, 'Sell', {
                 fontSize: '13px',
                 fontFamily: 'Verdana, Georgia, sans-serif',
                 color: '#111111',
-                backgroundColor: '#5aff9c',
+                backgroundColor: '#ffd166',
                 padding: { left: 8, right: 8, top: 4, bottom: 4 }
             }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
@@ -5572,16 +5580,16 @@ class Match3Scene extends Phaser.Scene {
                 padding: { left: 8, right: 8, top: 4, bottom: 4 }
             }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-            const sellBtn = this.add.text(cx + 100, btnY, 'Sell', {
+            const equipBtn = this.add.text(cx + 100, btnY, 'Equip', {
                 fontSize: '13px',
                 fontFamily: 'Verdana, Georgia, sans-serif',
                 color: '#111111',
-                backgroundColor: '#ffd166',
+                backgroundColor: '#5aff9c',
                 padding: { left: 8, right: 8, top: 4, bottom: 4 }
             }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-            this.rewardScreenGroup.add([cardBg, icon, name, rarity, stats, equippedLabel, ...compareLines, equipBtn, stashBtn, sellBtn]);
-            this.rewardCards.push({ cardBg, icon, name, rarity, stats, equippedLabel, compareLines, equipBtn, stashBtn, sellBtn, cy });
+            this.rewardScreenGroup.add([cardBg, icon, name, rarity, stats, equippedLabel, ...compareLines, innateText, equipBtn, stashBtn, sellBtn]);
+            this.rewardCards.push({ cardBg, icon, name, rarity, stats, equippedLabel, compareLines, innateText, equipBtn, stashBtn, sellBtn, cy });
         }
     }
 
@@ -5670,8 +5678,9 @@ class Match3Scene extends Phaser.Scene {
             if (itemImplicitKey) {
                 const newVal = item.implicit.value || 0;
                 const label = this.getStatLabel(itemImplicitKey);
-                perStatLines.push({ text: `${label}: ${newVal}`, color: '#aaddff' });
-                perStatLines.push({ text: '──────────', color: '#555555' });
+                card.innateText.setText(`${label}: ${newVal}`);
+            } else {
+                card.innateText.setText('');
             }
 
             allStatKeys.slice(0, 4).forEach(stat => {
@@ -5712,6 +5721,7 @@ class Match3Scene extends Phaser.Scene {
                 const actualRarityY = Math.max(defaultRarityY, nameBottom + 5);
                 const shift = actualRarityY - defaultRarityY;
                 card.rarity.setY(actualRarityY);
+                card.innateText.setY(actualRarityY);
                 card.equippedLabel.setY(cy - 28 + shift);
                 card.compareLines.forEach((cl, li) => {
                     const row = li % 3;
