@@ -1280,7 +1280,7 @@ class Match3Scene extends Phaser.Scene {
         let baseHP, baseAtk;
         if (battleNumber <= 8) {
             baseHP = 22 + (battleNumber - 1) * 10;
-            baseAtk = 1 + Math.floor((battleNumber - 1) * 0.8);
+            baseAtk = 3 + Math.floor((battleNumber - 1) * 1.2);
         } else {
             // After level 8, scale up more aggressively
             baseHP = 22 + 7 * 10 + (battleNumber - 8) * 22;
@@ -1811,6 +1811,11 @@ class Match3Scene extends Phaser.Scene {
         this.anims.create({ key: 'raccoonbandit_attack', frames: this.anims.generateFrameNumbers('raccoonbandit', { start: 6, end: 11 }), frameRate: 7, repeat: 0 });
         this.anims.create({ key: 'raccoonbandit_hit', frames: this.anims.generateFrameNumbers('raccoonbandit', { start: 12, end: 17 }), frameRate: 6, repeat: 0 });
         this.anims.create({ key: 'raccoonbandit_death', frames: this.anims.generateFrameNumbers('raccoonbandit', { start: 18, end: 23 }), frameRate: 5, repeat: 0 });
+
+        // Forest background
+        const _forestBg = this.add.image(this.sys.game.config.width / 2, this.sys.game.config.height / 2, 'forest');
+        _forestBg.setScale(Math.max(this.sys.game.config.width / _forestBg.width, this.sys.game.config.height / _forestBg.height));
+        _forestBg.setDepth(-100);
 
         this.boardContainer = this.add.container(0, 0);
         this.hudContainer = this.add.container(0, 0);
@@ -8974,17 +8979,17 @@ class Match3Scene extends Phaser.Scene {
                     goldGain += 3;
                 }
                 if (effect === 'physical') {
-                    const tileDamage = Math.max(1, 2 + Math.floor(gear.physical * 0.5));
+                    const tileDamage = Math.max(1, 1 + Math.floor(gear.physical * 0.35));
                     physicalDamage += tileDamage;
                     totalEnemyDamage += tileDamage;
                 }
                 if (effect === 'magic') {
-                    const tileDamage = Math.max(1, 2 + Math.floor(gear.magic * 0.5));
+                    const tileDamage = Math.max(1, 1 + Math.floor(gear.magic * 0.35));
                     magicDamage += tileDamage;
                     totalEnemyDamage += tileDamage;
                 }
                 if (effect === 'ranged') {
-                    const tileDamage = Math.max(1, 2 + Math.floor(gear.ranged * 0.5));
+                    const tileDamage = Math.max(1, 1 + Math.floor(gear.ranged * 0.35));
                     rangedDamage += tileDamage;
                     totalEnemyDamage += tileDamage;
                 }
@@ -9899,6 +9904,7 @@ class LoadScreen extends Phaser.Scene {
         this.load.image('support_addedcold', 'assets/Skills/addedcold.png');
         this.load.image('support_addedfire', 'assets/Skills/addedfire.png');
         this.load.image('town', 'assets/Screens/Town.png');
+        this.load.image('forest', 'assets/Screens/Forest.png');
     }
 
     create() {
