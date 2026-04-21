@@ -1,3 +1,4 @@
 {
-  "postCreateCommand": "bash keepalive.sh &"
+  "postStartCommand": "nohup bash /workspaces/FluffyQuest/keepalive.sh > /tmp/keepalive.log 2>&1 &"
 }
+

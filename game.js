@@ -1038,6 +1038,7 @@ class Match3Scene extends Phaser.Scene {
         this.talentConnectionGraphics = null;
         this.talentNodePopup = null;
         this._talentGlowTweens = [];
+        this._talentButtonGlowTween = null;
         this.currentScreen = 'game';
 
         this.maxInventorySlots = 12;
@@ -5867,6 +5868,7 @@ class Match3Scene extends Phaser.Scene {
 
         this.isSwapping = false;
         this.player.talentPoints += 1;
+        this.updateTalentButtonGlow();
         this.showGameScreen();
         const enemyNames = this.enemies.map(e => e.name).join(', ');
         this.addCombatLog(`Battle ${this.battleNumber}: ${enemyNames} appear! (${this.encounterSize} foe${this.encounterSize > 1 ? 's' : ''})`, '#ffcc66');
@@ -5912,6 +5914,30 @@ class Match3Scene extends Phaser.Scene {
         this.talentButton.on('pointerup', () => {
             this.showTalentScreen();
         });
+    }
+
+    updateTalentButtonGlow() {
+        if (!this.talentButton) return;
+        const pts = this.player.talentPoints;
+        if (this._talentButtonGlowTween) {
+            this._talentButtonGlowTween.stop();
+            this._talentButtonGlowTween = null;
+        }
+        if (pts > 0) {
+            this.talentButton.setStyle({ backgroundColor: '#6b3a00', color: '#ffd700' });
+            this.talentButton.setAlpha(1);
+            this._talentButtonGlowTween = this.tweens.add({
+                targets: this.talentButton,
+                alpha: { from: 1.0, to: 0.45 },
+                duration: 650,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
+        } else {
+            this.talentButton.setStyle({ backgroundColor: '#333333', color: '#ffd700' });
+            this.talentButton.setAlpha(1);
+        }
     }
 
     createStoreButton(x, y) {
@@ -6604,6 +6630,7 @@ class Match3Scene extends Phaser.Scene {
             this.talentPointsLabel.setText(`Talent Points: ${pts}`);
             this.talentPointsLabel.setColor(pts > 0 ? '#ffd700' : '#888888');
         }
+        this.updateTalentButtonGlow();
 
         // Did the player pick a starting node yet?
         const startChosen = [1, 2, 104].some(sid => this.allocatedTalents.has(sid));
