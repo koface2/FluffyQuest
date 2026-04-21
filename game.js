@@ -2,8 +2,8 @@ const GRID_WIDTH = 7;
 const GRID_HEIGHT = 7;
 const TILE_SIZE = 50;
 const GRID_OFFSET_X = 20;
-const GRID_OFFSET_Y = 30;
-const FIGHT_PANEL_Y = 395;
+const GRID_OFFSET_Y = 280;
+const FIGHT_PANEL_Y = 100;
 
 const TILE_TYPES = [
     { name: 'health',   color: 0xff1493, icon: '♥',  effect: 'health'   },
@@ -1295,22 +1295,21 @@ class Match3Scene extends Phaser.Scene {
 
     getEnemyPositions(count) {
         const rightCX = 293;
-        const FP = FIGHT_PANEL_Y;
-        if (count === 1) return [{ x: rightCX, y: FP + 55, scale: 1.10, barW: 166, barY: FP + 148 }];
+        if (count === 1) return [{ x: rightCX, y: 80, scale: 1.20, barW: 166, barY: 188 }];
         if (count === 2) return [
-            { x: rightCX - 34, y: FP + 45, scale: 0.90, barW: 82, barY: FP + 130 },
-            { x: rightCX + 34, y: FP + 45, scale: 0.90, barW: 82, barY: FP + 143 }
+            { x: rightCX - 34, y: 66, scale: 0.95, barW: 82, barY: 148 },
+            { x: rightCX + 34, y: 66, scale: 0.95, barW: 82, barY: 162 }
         ];
         if (count === 3) return [
-            { x: rightCX - 38, y: FP + 38, scale: 0.80, barW: 72, barY: FP + 110 },
-            { x: rightCX + 38, y: FP + 38, scale: 0.80, barW: 72, barY: FP + 122 },
-            { x: rightCX,      y: FP + 98, scale: 0.80, barW: 72, barY: FP + 162 }
+            { x: rightCX - 38, y: 54, scale: 0.84, barW: 72, barY: 120 },
+            { x: rightCX + 38, y: 54, scale: 0.84, barW: 72, barY: 134 },
+            { x: rightCX,      y: 114, scale: 0.84, barW: 72, barY: 178 }
         ];
         return [
-            { x: rightCX - 36, y: FP + 35, scale: 0.72, barW: 66, barY: FP + 96 },
-            { x: rightCX + 36, y: FP + 35, scale: 0.72, barW: 66, barY: FP + 108 },
-            { x: rightCX - 36, y: FP + 100, scale: 0.72, barW: 66, barY: FP + 158 },
-            { x: rightCX + 36, y: FP + 100, scale: 0.72, barW: 66, barY: FP + 170 }
+            { x: rightCX - 36, y: 48, scale: 0.76, barW: 66, barY: 104 },
+            { x: rightCX + 36, y: 48, scale: 0.76, barW: 66, barY: 118 },
+            { x: rightCX - 36, y: 118, scale: 0.76, barW: 66, barY: 172 },
+            { x: rightCX + 36, y: 118, scale: 0.76, barW: 66, barY: 186 }
         ];
     }
 
@@ -4226,18 +4225,17 @@ class Match3Scene extends Phaser.Scene {
     }
 
     createCombatLog() {
-        // Compact strip just below grid (between grid-bottom and fight panel)
-        const logY = GRID_OFFSET_Y + GRID_HEIGHT * TILE_SIZE + 12;
-        const strip = this.add.rectangle(195, logY, 386, 22, 0x000000, 0.55)
+        // Compact strip between nav buttons and grid — shows latest message, tap to open full log
+        const strip = this.add.rectangle(195, 255, 386, 22, 0x111111, 0.9)
             .setOrigin(0.5)
             .setInteractive({ useHandCursor: true })
             .on('pointerup', () => this.showCombatLogPopup());
         this.hudContainer.add(strip);
 
-        const icon = this.add.text(376, logY - 7, '📜', { fontSize: '12px' }).setOrigin(1, 0);
+        const icon = this.add.text(376, 248, '📜', { fontSize: '12px' }).setOrigin(1, 0);
         this.hudContainer.add(icon);
 
-        this.combatLogLatestText = this.add.text(10, logY - 7, '', {
+        this.combatLogLatestText = this.add.text(10, 248, '', {
             fontSize: '11px', color: '#aaffcc', fontStyle: 'bold',
             wordWrap: { width: 340 }
         });
@@ -5371,19 +5369,21 @@ class Match3Scene extends Phaser.Scene {
     }
 
     createPlayerUI() {
-        // Portrait layout: player LEFT (below grid), enemy RIGHT (below grid)
+        // Portrait layout: player LEFT, enemy RIGHT, both in top half above grid
         const leftCX = 97;
         const rightCX = 293;
         const panelW = 188;
+        const panelH = 250;
         const barW = 166;
-        const FP = FIGHT_PANEL_Y; // fight panel top in world-space
 
-        // Divider line between panels (spans fight area)
-        this.hudContainer.add(this.add.rectangle(195, FP + 90, 2, 185, 0x444444, 0.5));
+        // Divider line between panels
+        this.hudContainer.add(this.add.rectangle(195, panelH / 2 + 4, 2, panelH, 0x444444, 1));
 
         // --- Player panel (left) ---
-        this.playerSprite = this.add.sprite(leftCX, FP + 55, 'warrior').setOrigin(0.5, 0.5);
-        this.playerSprite.setScale(1.0);
+        this.hudContainer.add(this.add.rectangle(leftCX, panelH / 2 + 4, panelW, panelH, 0x111111, 0.9).setOrigin(0.5));
+        // Sprite-based player character
+        this.playerSprite = this.add.sprite(leftCX, 80, 'warrior').setOrigin(0.5, 0.5);
+        this.playerSprite.setScale(1.3);
         this.playerSprite.play('warrior_idle');
         this.playerSprite.on('animationcomplete', (anim) => {
             if (!anim.key.endsWith('_idle') && !anim.key.endsWith('_death') && this.playerSprite && this.playerSprite.active) {
@@ -5391,32 +5391,34 @@ class Match3Scene extends Phaser.Scene {
             }
         });
         this.hudContainer.add(this.playerSprite);
-        this.heroTitleText = this.add.text(leftCX, FP + 118, `Hero (Lv. ${this.player.level})`, { fontSize: '15px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
+        this.heroTitleText = this.add.text(leftCX, 140, `Hero (Lv. ${this.player.level})`, { fontSize: '17px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
         this.hudContainer.add(this.heroTitleText);
         // --- Energy Shield bar ---
-        this.playerShieldLabel = this.add.text(14, FP + 126, 'ES', { fontSize: '9px', color: '#66aaff' });
+        this.playerShieldLabel = this.add.text(14, 148, 'ES', { fontSize: '9px', color: '#66aaff' });
         this.hudContainer.add(this.playerShieldLabel);
-        this.playerShieldBarBg = this.add.rectangle(14, FP + 134, barW, 8, 0x333344).setOrigin(0, 0.5);
+        this.playerShieldBarBg = this.add.rectangle(14, 157, barW, 8, 0x333344).setOrigin(0, 0.5);
         this.hudContainer.add(this.playerShieldBarBg);
-        this.playerShieldBar = this.add.rectangle(14, FP + 134, 0, 8, 0x3388ff).setOrigin(0, 0.5);
+        this.playerShieldBar = this.add.rectangle(14, 157, 0, 8, 0x3388ff).setOrigin(0, 0.5);
         this.hudContainer.add(this.playerShieldBar);
-        this.playerShieldText = this.add.text(14 + barW / 2, FP + 134, '', { fontSize: '7px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5);
+        this.playerShieldText = this.add.text(14 + barW / 2, 157, '', { fontSize: '7px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5);
         this.hudContainer.add(this.playerShieldText);
         // --- HP bar ---
-        this.hudContainer.add(this.add.text(14, FP + 140, 'HP', { fontSize: '11px', color: '#aaa' }));
-        this.playerHealthBarBg = this.add.rectangle(14, FP + 151, barW, 12, 0x444444).setOrigin(0, 0.5);
+        this.hudContainer.add(this.add.text(14, 163, 'HP', { fontSize: '11px', color: '#aaa' }));
+        this.playerHealthBarBg = this.add.rectangle(14, 174, barW, 12, 0x444444).setOrigin(0, 0.5);
         this.hudContainer.add(this.playerHealthBarBg);
-        this.playerHealthBar = this.add.rectangle(14, FP + 151, barW, 12, 0x00cc00).setOrigin(0, 0.5);
+        this.playerHealthBar = this.add.rectangle(14, 174, barW, 12, 0x00cc00).setOrigin(0, 0.5);
         this.hudContainer.add(this.playerHealthBar);
-        this.playerHealthText = this.add.text(14 + barW / 2, FP + 151, '', { fontSize: '9px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5);
+        this.playerHealthText = this.add.text(14 + barW / 2, 174, '', { fontSize: '9px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5);
         this.hudContainer.add(this.playerHealthText);
         // --- Enemy panel (right) ---
+        this.hudContainer.add(this.add.rectangle(rightCX, panelH / 2 + 4, panelW, panelH, 0x111111, 0.9).setOrigin(0.5));
+        // Build initial enemy group
         this.encounterSize = 1;
         this.buildEnemyGroup(this.battleNumber, this.hudContainer);
         if (this.enemyEncounterLabel) this.enemyEncounterLabel.setText('');
-        // --- Gold display ---
-        this.goldDisplayIcon = this.add.text(14, FP + 164, '\ud83e\ude99', { fontSize: '14px' }).setOrigin(0, 0.5);
-        this.goldDisplayText = this.add.text(32, FP + 164, '0', { fontSize: '13px', color: '#ffd966', fontStyle: 'bold' }).setOrigin(0, 0.5);
+        // --- Gold display (under player HP bar) ---
+        this.goldDisplayIcon = this.add.text(14, 190, '\ud83e\ude99', { fontSize: '14px' }).setOrigin(0, 0.5);
+        this.goldDisplayText = this.add.text(32, 190, '0', { fontSize: '13px', color: '#ffd966', fontStyle: 'bold' }).setOrigin(0, 0.5);
         this.hudContainer.add([this.goldDisplayIcon, this.goldDisplayText]);
 
         this.createEquipmentScreen();
@@ -5424,10 +5426,10 @@ class Match3Scene extends Phaser.Scene {
         this.createTalentScreen();
         this.createStoreScreen();
         // 4 buttons evenly spaced across 390px width
-        this.createEquipmentButton(49, FP + 178);
-        this.createSkillsButton(147, FP + 178);
-        this.createTalentButton(245, FP + 178);
-        this.createStoreButton(343, FP + 178);
+        this.createEquipmentButton(49, 210);
+        this.createSkillsButton(147, 210);
+        this.createTalentButton(245, 210);
+        this.createStoreButton(343, 210);
 
         this.updatePlayerUI();
         this.updateEnemyUI();
@@ -9903,7 +9905,7 @@ class LoadScreen extends Phaser.Scene {
         this.load.image('support_addedfire', 'assets/Skills/addedfire.png');
         this.load.image('town', 'assets/Screens/Town.png');
         this.load.image('forest', 'assets/Screens/Forest.png');
-        this.load.spritesheet('rescues', 'assets/sprites/Rescues.png', { frameWidth: 240, frameHeight: 256 });
+        this.load.spritesheet('rescues', 'assets/sprites/Rescues.png', { frameWidth: 256, frameHeight: 256 });
     }
 
     create() {
@@ -10006,6 +10008,222 @@ class TownScene extends Phaser.Scene {
     }
 }
 
+// ============================================================
+// DialogueScene
+// ============================================================
+// Launch as an overlay on top of another running scene:
+//   this.scene.launch('DialogueScene', {
+//       dialogue:    [...],        // optional — overrides DEFAULT_DIALOGUE
+//       returnScene: 'TownScene',  // optional — scene to start after dialogue
+//       onComplete:  () => {}      // optional — callback fired after fade-out
+//   });
+//
+// Or as a standalone scene transition:
+//   this.scene.start('DialogueScene', { returnScene: 'TownScene' });
+// ============================================================
+
+const DEFAULT_DIALOGUE = [
+    { speaker: 'hero',  name: 'Pipsworth', text: "There you are! I've been fighting through half the forest to find you!" },
+    { speaker: 'bunny', name: 'Clover',    text: "I… I didn't think anyone would come. I was so scared." },
+    { speaker: 'hero',  name: 'Pipsworth', text: "I'll always come. Now we need to move before more of them show up." },
+    { speaker: 'bunny', name: 'Clover',    text: "I can fight too, you know. I've been practising while I waited." },
+    { speaker: 'hero',  name: 'Pipsworth', text: "I don't doubt it. Let's head home together, Clover." },
+    { speaker: 'bunny', name: 'Clover',    text: "Right behind you, Pipsworth. Lead the way." },
+];
+
+class DialogueScene extends Phaser.Scene {
+    constructor() {
+        super('DialogueScene');
+    }
+
+    init(data) {
+        this.dialogueLines = (data && data.dialogue)    ? data.dialogue    : DEFAULT_DIALOGUE;
+        this.returnScene   = (data && data.returnScene) ? data.returnScene : null;
+        this.onComplete    = (data && data.onComplete)  ? data.onComplete  : null;
+        this.lineIndex     = 0;
+        this._inputLocked  = false;
+    }
+
+    create() {
+        const W = this.sys.game.config.width;   // 390
+        const H = this.sys.game.config.height;  // 780
+
+        this.CHAR_Y     = Math.round(H * 0.72); // ~562 — feet of both characters
+        this.CHAR_SCALE = 1.3;
+
+        // ── Background ────────────────────────────────────────────────────
+        const bg = this.add.image(W / 2, H / 2, 'forest');
+        bg.setScale(Math.max(W / bg.width, H / bg.height));
+
+        // Semi-transparent vignette so characters read clearly
+        this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.45);
+
+        // ── Hero (guinea pig warrior) — left side, facing right ───────────
+        this._ensureAnim('dlg_hero_idle', 'warrior', 0, 5, 5);
+        this.heroSprite = this.add.sprite(Math.round(W * 0.26), this.CHAR_Y, 'warrior')
+            .setScale(this.CHAR_SCALE)
+            .setOrigin(0.5, 1)
+            .play('dlg_hero_idle');
+
+        // ── Rescued bunny — right side, flipped to face left ─────────────
+        this._ensureAnim('dlg_bunny_idle', 'bunnywarlock', 0, 5, 3);
+        this.bunnySprite = this.add.sprite(Math.round(W * 0.74), this.CHAR_Y, 'bunnywarlock')
+            .setScale(this.CHAR_SCALE)
+            .setFlipX(true)
+            .setOrigin(0.5, 1)
+            .play('dlg_bunny_idle');
+
+        // ── Name labels beneath each character ───────────────────────────
+        const labelStyle = { fontSize: '13px', stroke: '#000000', strokeThickness: 3, fontStyle: 'bold' };
+        this.heroNameLabel  = this.add.text(Math.round(W * 0.26), this.CHAR_Y + 6, '', { ...labelStyle, color: '#ffdd88' }).setOrigin(0.5, 0);
+        this.bunnyNameLabel = this.add.text(Math.round(W * 0.74), this.CHAR_Y + 6, '', { ...labelStyle, color: '#aaddff' }).setOrigin(0.5, 0);
+
+        // ── Speech bubble (graphics + text, rebuilt each line) ────────────
+        this.bubbleGfx  = this.add.graphics();
+        this.bubbleText = this.add.text(0, 0, '', {
+            fontSize: '15px',
+            color: '#1a1a1a',
+            wordWrap: { width: 180, useAdvancedWrap: true },
+            align: 'center',
+            lineSpacing: 3
+        }).setOrigin(0.5);
+
+        // ── "Tap to continue" hint ────────────────────────────────────────
+        const hint = this.add.text(W / 2, H - 44, '— tap anywhere to continue —', {
+            fontSize: '12px', color: '#cccccc', stroke: '#000000', strokeThickness: 2
+        }).setOrigin(0.5);
+        this.tweens.add({ targets: hint, alpha: 0.2, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+
+        // ── Fade the scene in, then show the first line ───────────────────
+        this.cameras.main.fadeIn(350, 0, 0, 0);
+        this.cameras.main.once('camerafadeincomplete', () => {
+            this.showLine(0);
+            this.input.on('pointerup', this._advance, this);
+        });
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────
+
+    _ensureAnim(key, textureKey, start, end, frameRate) {
+        if (!this.anims.exists(key)) {
+            this.anims.create({
+                key,
+                frames: this.anims.generateFrameNumbers(textureKey, { start, end }),
+                frameRate,
+                repeat: -1
+            });
+        }
+    }
+
+    showLine(index) {
+        const W       = this.sys.game.config.width;
+        const line    = this.dialogueLines[index];
+        const isHero  = (line.speaker === 'hero');
+        const activeX = isHero ? Math.round(W * 0.26) : Math.round(W * 0.74);
+
+        // Dim the inactive character, restore the active one
+        this.heroSprite.setAlpha(isHero ? 1.0 : 0.40);
+        this.bunnySprite.setAlpha(isHero ? 0.40 : 1.0);
+
+        // Update name labels (show name only under the current speaker)
+        this.heroNameLabel.setText(isHero ? (line.name || 'Hero')  : '');
+        this.bunnyNameLabel.setText(isHero ? '' : (line.name || 'Bunny'));
+
+        // ── Measure text and compute bubble geometry ──────────────────────
+        const PAD      = 14;
+        const maxWrap  = 190;
+        const tailH    = 14;
+        const radius   = 10;
+        const FRAME_H  = 130; // warrior / bunnywarlock sprite frame height (px)
+
+        // Sprite top = feet - frame height × scale − small gap
+        const spriteTopY = this.CHAR_Y - FRAME_H * this.CHAR_SCALE - 8;
+
+        this.bubbleText
+            .setStyle({ wordWrap: { width: maxWrap - PAD * 2, useAdvancedWrap: true } })
+            .setText(line.text);
+
+        const bW = Math.max(this.bubbleText.width + PAD * 2, 80);
+        const bH = this.bubbleText.height + PAD * 2;
+
+        // Clamp bubble horizontally so it stays inside the canvas
+        let bX = activeX - bW / 2;
+        bX = Math.max(8, Math.min(W - bW - 8, bX));
+        const bY = spriteTopY - bH - tailH - 6;
+
+        this.bubbleGfx.clear();
+
+        // Drop shadow
+        this.bubbleGfx.fillStyle(0x000000, 0.22);
+        this.bubbleGfx.fillRoundedRect(bX + 4, bY + 4, bW, bH, radius);
+
+        // Bubble body
+        this.bubbleGfx.fillStyle(0xffffff, 1);
+        this.bubbleGfx.fillRoundedRect(bX, bY, bW, bH, radius);
+        this.bubbleGfx.lineStyle(2, 0x444444, 1);
+        this.bubbleGfx.strokeRoundedRect(bX, bY, bW, bH, radius);
+
+        // Tail pointing down toward the speaking character
+        const tipX = Math.max(bX + 20, Math.min(bX + bW - 20, activeX));
+        this.bubbleGfx.fillStyle(0xffffff, 1);
+        this.bubbleGfx.fillTriangle(tipX - 9, bY + bH, tipX + 9, bY + bH, tipX, bY + bH + tailH);
+        // Seal the seam between rounded rect and triangle
+        this.bubbleGfx.fillRect(tipX - 8, bY + bH - 1, 16, 3);
+
+        // Tail border (outer lines only; interior sealed above)
+        this.bubbleGfx.lineStyle(2, 0x444444, 1);
+        this.bubbleGfx.beginPath();
+        this.bubbleGfx.moveTo(tipX - 9, bY + bH);
+        this.bubbleGfx.lineTo(tipX, bY + bH + tailH);
+        this.bubbleGfx.lineTo(tipX + 9, bY + bH);
+        this.bubbleGfx.strokePath();
+        // White fill over the seam line inside the bubble
+        this.bubbleGfx.lineStyle(2, 0xffffff, 1);
+        this.bubbleGfx.beginPath();
+        this.bubbleGfx.moveTo(tipX - 7, bY + bH);
+        this.bubbleGfx.lineTo(tipX + 7, bY + bH);
+        this.bubbleGfx.strokePath();
+
+        // Centre text inside bubble
+        this.bubbleText.setPosition(bX + bW / 2, bY + bH / 2);
+
+        // Pop-in animation for bubble + text
+        this.bubbleGfx.setScale(0.85).setAlpha(0);
+        this.bubbleText.setAlpha(0);
+        this.tweens.add({
+            targets: [this.bubbleGfx, this.bubbleText],
+            scale: 1, alpha: 1,
+            duration: 160,
+            ease: 'Back.easeOut'
+        });
+    }
+
+    _advance() {
+        if (this._inputLocked) return;
+        this.lineIndex++;
+        if (this.lineIndex >= this.dialogueLines.length) {
+            this._endDialogue();
+        } else {
+            this.showLine(this.lineIndex);
+        }
+    }
+
+    _endDialogue() {
+        this._inputLocked = true;
+        this.input.off('pointerup', this._advance, this);
+
+        this.cameras.main.fadeOut(400, 0, 0, 0);
+        this.cameras.main.once('camerafadeoutcomplete', () => {
+            this.scene.stop();
+            if (this.onComplete) {
+                this.onComplete();
+            } else if (this.returnScene) {
+                this.scene.start(this.returnScene);
+            }
+        });
+    }
+}
+
 const config = {
     type: Phaser.AUTO,
     width: 390,
@@ -10023,7 +10241,7 @@ const config = {
     input: {
         activePointers: 2
     },
-    scene: [BootScene, LoadScreen, TownScene, Match3Scene]
+    scene: [BootScene, LoadScreen, TownScene, Match3Scene, DialogueScene]
 };
 
 const game = new Phaser.Game(config);
