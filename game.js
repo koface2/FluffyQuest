@@ -9903,7 +9903,7 @@ class LoadScreen extends Phaser.Scene {
         this.load.image('support_addedfire', 'assets/Skills/addedfire.png');
         this.load.image('town', 'assets/Screens/Town.png');
         this.load.image('forest', 'assets/Screens/Forest.png');
-        this.load.spritesheet('rescues', 'assets/sprites/Rescues.png', { frameWidth: 256, frameHeight: 186 });
+        this.load.spritesheet('rescues', 'assets/sprites/Rescues.png', { frameWidth: 240, frameHeight: 256 });
     }
 
     create() {
@@ -9954,46 +9954,34 @@ class TownScene extends Phaser.Scene {
             stroke: '#000000', strokeThickness: 6
         }).setOrigin(0.5);
 
-        // --- Rescue animal animations (6 animals, 8 frames each, 256x186 px per frame) ---
-        // Per-animal origins derived from pixel bounding-box analysis so each animal
-        // is visually centered and lateral frame-to-frame drift is minimised.
-        const RESCUE_ORIGINS = [
-            { ox: 127 / 256, oy: 100 / 186 }, // animal 0 — content center (127,100)
-            { ox: 152 / 256, oy: 93  / 186 }, // animal 1 — shifted right in frame
-            { ox: 150 / 256, oy: 93  / 186 }, // animal 2 — similar shift
-            { ox: 0.5,       oy: 0.5        }, // animal 3 — full frame
-            { ox: 0.5,       oy: 0.5        }, // animal 4 — full frame
-            { ox: 0.5,       oy: 0.5        }, // animal 5 — full frame
-        ];
-        for (let i = 0; i < 6; i++) {
+        // 5 animals × 8 frames each; frames are uniformly 240×256, bottom-center anchored
+        for (let i = 0; i < 5; i++) {
             const key = 'rescue_' + i + '_idle';
             if (!this.anims.exists(key)) {
                 this.anims.create({
                     key,
                     frames: this.anims.generateFrameNumbers('rescues', { start: i * 8, end: i * 8 + 7 }),
-                    frameRate: 5,
+                    frameRate: 6,
                     repeat: -1
                 });
             }
         }
 
-        // Two rows of 3 — evenly spaced, scale 0.42 gives display ≈107×78 px each
-        const SCALE = 0.42;
+        // Two rows of 3 (only 5 animals, last slot empty) — scale 0.38 gives ~91×97 px each
+        const SCALE = 0.38;
         const animalLayout = [
             { x: 68,  y: 315 },
-            { x: 195, y: 330 },
+            { x: 195, y: 315 },
             { x: 322, y: 315 },
-            { x: 68,  y: 490 },
-            { x: 195, y: 505 },
-            { x: 322, y: 490 }
+            { x: 120, y: 480 },
+            { x: 270, y: 480 }
         ];
         animalLayout.forEach((pos, i) => {
-            const org = RESCUE_ORIGINS[i];
             const sprite = this.add.sprite(pos.x, pos.y, 'rescues')
                 .setScale(SCALE)
-                .setOrigin(org.ox, org.oy);
-            // Stagger animation start so animals don't all bob in sync
-            this.time.delayedCall(i * 160, () => {
+                .setOrigin(0.5, 1.0);  // bottom-center: feet stay planted
+            // Stagger animation start so animals don't all blink in sync
+            this.time.delayedCall(i * 200, () => {
                 if (sprite && sprite.active) sprite.play('rescue_' + i + '_idle');
             });
         });
