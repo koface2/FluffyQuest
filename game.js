@@ -1007,6 +1007,22 @@ function resetTutorialsSeen() {
     try { localStorage.removeItem('fq_tutorials_seen'); } catch (e) {}
 }
 
+// ---------------------------------------------------------------------------
+// Story-state helpers — persist narrative progression to localStorage
+// ---------------------------------------------------------------------------
+function getRescuedBunny() {
+    return localStorage.getItem('fq_rescued_bunny') === 'true';
+}
+function setRescuedBunny(val) {
+    localStorage.setItem('fq_rescued_bunny', val ? 'true' : 'false');
+}
+function getSkillGemsUnlocked() {
+    return localStorage.getItem('fq_skill_gems_unlocked') === 'true';
+}
+function setSkillGemsUnlocked(val) {
+    localStorage.setItem('fq_skill_gems_unlocked', val ? 'true' : 'false');
+}
+
 class Match3Scene extends Phaser.Scene {
     // Track when the store was last refreshed
     // (initialize in constructor)
@@ -1882,7 +1898,7 @@ class Match3Scene extends Phaser.Scene {
             this.createRewardScreen();
         }
         this.createDeathScreen();
-        if (this.devMode) {
+        if (this.devMode || getSkillGemsUnlocked()) {
             this.createSkillBar();
         }
 
@@ -5493,6 +5509,10 @@ class Match3Scene extends Phaser.Scene {
             this.createSkillsButton(147, 210);
             this.createTalentButton(245, 210);
             this.createStoreButton(343, 210);
+        } else if (getSkillGemsUnlocked()) {
+            // Skill gems were unlocked via the rescue story event — show the Skills screen
+            this.createSkillsScreen();
+            this.createSkillsButton(195, 210);
         }
 
         this.updatePlayerUI();
@@ -5894,6 +5914,13 @@ class Match3Scene extends Phaser.Scene {
     }
 
     startNextBattle() {
+        // After the first boss (battle 7) is defeated, trigger the rescue cutscene
+        if (this.battleNumber === 7 && !getRescuedBunny()) {
+            setRescuedBunny(true);
+            this.scene.start('DialogueScene', { returnScene: 'TownScene' });
+            return;
+        }
+
         this.battleNumber += 1;
         // Level up the hero after each battle
         if (this.player && typeof this.player.level === 'number') {
@@ -10284,29 +10311,83 @@ class TownScene extends Phaser.Scene {
             .setOrigin(0.5, 1.0);
         heroSprite.play('town_warrior_idle');
 
-        // Thought bubble: positioned to the upper-right, clear of the warrior's body
-        const bubbleCX = W / 2 + 90;
-        const bubbleCY = heroY - 290;
-        const bubbleW  = 200;
-        const bubbleH  = 70;
-        const gfx = this.add.graphics();
-        gfx.fillStyle(0xffffff, 0.93);
-        gfx.fillRoundedRect(bubbleCX - bubbleW / 2, bubbleCY - bubbleH / 2, bubbleW, bubbleH, 18);
-        gfx.lineStyle(2, 0x999999, 0.75);
-        gfx.strokeRoundedRect(bubbleCX - bubbleW / 2, bubbleCY - bubbleH / 2, bubbleW, bubbleH, 18);
-        // Trailing thought dots curving toward the warrior's head (upper-center of sprite)
-        const dotAnchorX = W / 2 + 16;
-        const dotAnchorY = heroY - 210;
-        [[dotAnchorX, dotAnchorY, 8], [dotAnchorX + 14, dotAnchorY - 22, 5.5], [dotAnchorX + 26, dotAnchorY - 42, 3.5]].forEach(([dx, dy, dr]) => {
+        // Thought bubble — only shown while Clover has not yet been rescued
+        if (!getRescuedBunny()) {
+            const bubbleCX = W / 2 + 90;
+            const bubbleCY = heroY - 290;
+            const bubbleW  = 200;
+            const bubbleH  = 70;
+            const gfx = this.add.graphics();
             gfx.fillStyle(0xffffff, 0.93);
-            gfx.fillCircle(dx, dy, dr);
-            gfx.lineStyle(1.5, 0x999999, 0.75);
-            gfx.strokeCircle(dx, dy, dr);
-        });
-        this.add.text(bubbleCX, bubbleCY, 'I guess I\'d better\npoke around...', {
-            fontSize: '15px', color: '#222222',
-            align: 'center', lineSpacing: 3
-        }).setOrigin(0.5);
+            gfx.fillRoundedRect(bubbleCX - bubbleW / 2, bubbleCY - bubbleH / 2, bubbleW, bubbleH, 18);
+            gfx.lineStyle(2, 0x999999, 0.75);
+            gfx.strokeRoundedRect(bubbleCX - bubbleW / 2, bubbleCY - bubbleH / 2, bubbleW, bubbleH, 18);
+            // Trailing thought dots curving toward the warrior's head (upper-center of sprite)
+            const dotAnchorX = W / 2 + 16;
+            const dotAnchorY = heroY - 210;
+            [[dotAnchorX, dotAnchorY, 8], [dotAnchorX + 14, dotAnchorY - 22, 5.5], [dotAnchorX + 26, dotAnchorY - 42, 3.5]].forEach(([dx, dy, dr]) => {
+                gfx.fillStyle(0xffffff, 0.93);
+                gfx.fillCircle(dx, dy, dr);
+                gfx.lineStyle(1.5, 0x999999, 0.75);
+                gfx.strokeCircle(dx, dy, dr);
+            });
+            this.add.text(bubbleCX, bubbleCY, 'I guess I\'d better\npoke around...', {
+                fontSize: '15px', color: '#222222',
+                align: 'center', lineSpacing: 3
+            }).setOrigin(0.5);
+        }
+
+        // ── Rescued bunny (Clover) — appears in town after the first boss is defeated ──
+        if (getRescuedBunny()) {
+            if (!this.anims.exists('town_bunny_idle')) {
+                this.anims.create({
+                    key: 'town_bunny_idle',
+                    frames: this.anims.generateFrameNumbers('rescues', { start: 32, end: 39 }),
+                    frameRate: 6,
+                    repeat: -1
+                });
+            }
+            const bunnyX = Math.round(W * 0.73);
+            const bunnySprite = this.add.sprite(bunnyX, heroY, 'rescues')
+                .setScale(1.35)
+                .setOrigin(0.5, 1.0);
+            bunnySprite.play('town_bunny_idle');
+
+            if (!getSkillGemsUnlocked()) {
+                // Animate a "!" above the bunny to signal an available interaction
+                const exclMark = this.add.text(bunnyX + 14, heroY - 218, '!', {
+                    fontSize: '34px', color: '#ffee00', fontStyle: 'bold',
+                    stroke: '#000000', strokeThickness: 5
+                }).setOrigin(0.5);
+                this.tweens.add({ targets: exclMark, y: heroY - 232, duration: 480, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+
+                bunnySprite.setInteractive({ useHandCursor: true });
+                bunnySprite.once('pointerup', () => {
+                    exclMark.destroy();
+                    bunnySprite.disableInteractive();
+                    this._showGemGiftPopup(W, H);
+                });
+            } else {
+                // Bunny stands in town with a friendly greeting
+                const sBubbleGfx = this.add.graphics();
+                const sBX = bunnyX - 82, sBY = heroY - 288, sBW = 164, sBH = 50;
+                sBubbleGfx.fillStyle(0xffffff, 0.9);
+                sBubbleGfx.fillRoundedRect(sBX, sBY, sBW, sBH, 14);
+                sBubbleGfx.lineStyle(2, 0x999999, 0.75);
+                sBubbleGfx.strokeRoundedRect(sBX, sBY, sBW, sBH, 14);
+                sBubbleGfx.fillStyle(0xffffff, 0.9);
+                sBubbleGfx.fillTriangle(bunnyX - 8, sBY + sBH, bunnyX + 8, sBY + sBH, bunnyX, sBY + sBH + 12);
+                sBubbleGfx.lineStyle(2, 0x999999, 0.75);
+                sBubbleGfx.beginPath();
+                sBubbleGfx.moveTo(bunnyX - 8, sBY + sBH);
+                sBubbleGfx.lineTo(bunnyX, sBY + sBH + 12);
+                sBubbleGfx.lineTo(bunnyX + 8, sBY + sBH);
+                sBubbleGfx.strokePath();
+                this.add.text(bunnyX + 1, sBY + sBH / 2, 'Good morning,\nPipsworth!', {
+                    fontSize: '13px', color: '#222222', align: 'center', lineSpacing: 2
+                }).setOrigin(0.5);
+            }
+        }
 
         // "Enter the Forest" button — stripped-down arcade mode
         const btnW = 230;
@@ -10434,6 +10515,96 @@ class TownScene extends Phaser.Scene {
             smTutLabel, smTutBtn, smTutTxt,
             smResetBg, smResetTxt, smCloseBg, smCloseTxt
         ]);
+    }
+
+    // ── Gem gift popup — shown the first time the player taps Clover in town ──
+    _showGemGiftPopup(W, H) {
+        const DIALOGUE = [
+            { speaker: 'bunny', name: 'Clover', text: "Oh! I almost forgot — I found something strange while I was hiding in the forest." },
+            { speaker: 'bunny', name: 'Clover', text: "It glowed and hummed. I was too scared to use it, but I think you'd know what to do with it." },
+            { speaker: 'hero',  name: 'Pipsworth', text: "A skill gem! This will give my abilities real power. Thank you, Clover." },
+            { speaker: 'bunny', name: 'Clover', text: "Be careful out there. And come back in one piece this time!" },
+        ];
+
+        const overlay = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.72)
+            .setDepth(200)
+            .setInteractive();
+
+        const panelW = 330, panelH = 240;
+        const panelX = W / 2, panelY = H / 2;
+        const panel = this.add.rectangle(panelX, panelY, panelW, panelH, 0x1a1a2e, 1)
+            .setStrokeStyle(2, 0xaaddff)
+            .setDepth(201);
+
+        const gemIcon = this.add.text(panelX, panelY - 68, '💎', { fontSize: '44px' })
+            .setOrigin(0.5)
+            .setDepth(202);
+        this.tweens.add({ targets: gemIcon, y: panelY - 76, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+
+        const titleText = this.add.text(panelX, panelY - 18, 'Skill Gem Received!', {
+            fontSize: '19px', color: '#aaddff', fontStyle: 'bold',
+            stroke: '#000000', strokeThickness: 3
+        }).setOrigin(0.5).setDepth(202);
+
+        let lineIndex = 0;
+        const lineText = this.add.text(panelX, panelY + 32, '', {
+            fontSize: '14px', color: '#eeeeee',
+            wordWrap: { width: panelW - 30, useAdvancedWrap: true },
+            align: 'center', lineSpacing: 3
+        }).setOrigin(0.5).setDepth(202);
+
+        const speakerLabel = this.add.text(panelX, panelY + 8, '', {
+            fontSize: '12px', color: '#ffdd88', fontStyle: 'bold',
+            stroke: '#000000', strokeThickness: 2
+        }).setOrigin(0.5).setDepth(202);
+
+        const hintText = this.add.text(panelX, panelY + panelH / 2 - 18, '— tap to continue —', {
+            fontSize: '11px', color: '#888888'
+        }).setOrigin(0.5).setDepth(202);
+        this.tweens.add({ targets: hintText, alpha: 0.2, duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+
+        const allObjs = [overlay, panel, gemIcon, titleText, lineText, speakerLabel, hintText];
+
+        const showLine = (idx) => {
+            const line = DIALOGUE[idx];
+            speakerLabel.setText(line.name);
+            speakerLabel.setColor(line.speaker === 'hero' ? '#ffdd88' : '#aaddff');
+            lineText.setText(line.text);
+        };
+        showLine(0);
+
+        const advance = () => {
+            lineIndex++;
+            if (lineIndex >= DIALOGUE.length) {
+                // Done — unlock skill gems and clean up
+                setSkillGemsUnlocked(true);
+                allObjs.forEach(o => o.destroy());
+                overlay.removeInteractive();
+                // Show a brief "Skills Unlocked!" banner
+                const banner = this.add.text(W / 2, H / 2, '✨ Skills Unlocked! ✨', {
+                    fontSize: '24px', color: '#aaddff', fontStyle: 'bold',
+                    stroke: '#000000', strokeThickness: 4
+                }).setOrigin(0.5).setDepth(300).setAlpha(0);
+                this.tweens.add({
+                    targets: banner,
+                    alpha: 1,
+                    y: H / 2 - 30,
+                    duration: 400,
+                    ease: 'Back.easeOut',
+                    onComplete: () => {
+                        this.time.delayedCall(1400, () => {
+                            this.tweens.add({ targets: banner, alpha: 0, duration: 300, onComplete: () => banner.destroy() });
+                        });
+                    }
+                });
+                // Restart TownScene so the bunny speech bubble updates
+                this.time.delayedCall(2200, () => this.scene.restart());
+            } else {
+                showLine(lineIndex);
+            }
+        };
+
+        overlay.on('pointerup', advance);
     }
 }
 
