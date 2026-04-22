@@ -1814,6 +1814,10 @@ class Match3Scene extends Phaser.Scene {
         this.anims.create({ key: 'raccoonbandit_hit', frames: this.anims.generateFrameNumbers('raccoonbandit', { start: 12, end: 17 }), frameRate: 6, repeat: 0 });
         this.anims.create({ key: 'raccoonbandit_death', frames: this.anims.generateFrameNumbers('raccoonbandit', { start: 18, end: 23 }), frameRate: 5, repeat: 0 });
 
+        // Music
+        this.sound.stopAll();
+        this.sound.play('battlesong', { loop: true, volume: 0.6 });
+
         // Forest background
         const _forestBg = this.add.image(this.sys.game.config.width / 2, this.sys.game.config.height / 2, 'forest');
         _forestBg.setScale(Math.max(this.sys.game.config.width / _forestBg.width, this.sys.game.config.height / _forestBg.height));
@@ -9933,6 +9937,8 @@ class LoadScreen extends Phaser.Scene {
         this.load.image('town', 'assets/Screens/Town.png');
         this.load.image('forest', 'assets/Screens/Forest.png');
         this.load.spritesheet('rescues', 'assets/sprites/Rescues.png', { frameWidth: 256, frameHeight: 256 });
+        this.load.audio('townsong', 'assets/music/townsong.mp3');
+        this.load.audio('battlesong', 'assets/music/battlesong.mp3');
     }
 
     create() {
@@ -9970,6 +9976,10 @@ class TownScene extends Phaser.Scene {
     create() {
         const W = this.sys.game.config.width;
         const H = this.sys.game.config.height;
+
+        // Music
+        this.sound.stopAll();
+        this.sound.play('townsong', { loop: true, volume: 0.6 });
 
         // Background: town image scaled to fill
         const bg = this.add.image(W / 2, H / 2, 'town');
