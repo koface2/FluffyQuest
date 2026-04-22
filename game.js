@@ -1112,7 +1112,8 @@ class Match3Scene extends Phaser.Scene {
     // -------------------------------------------------------------------------
     // Reset all gameplay state — called by Phaser on scene.restart()
     // -------------------------------------------------------------------------
-    init() {
+    init(data) {
+        this.devMode = !!(data && data.devMode);
         this.score = 0;
         this.lastStoreRefreshBattle = 1;
         this.player = {
@@ -1830,9 +1831,13 @@ class Match3Scene extends Phaser.Scene {
         this.player.health = this.getMaxHealth();
         this.refillEnergyShield();
         this.createCombatLog();
-        this.createRewardScreen();
+        if (this.devMode) {
+            this.createRewardScreen();
+        }
         this.createDeathScreen();
-        this.createSkillBar();
+        if (this.devMode) {
+            this.createSkillBar();
+        }
 
         this.showGameScreen();
 
@@ -1970,7 +1975,10 @@ class Match3Scene extends Phaser.Scene {
                             // Check if the last enemy was just killed by this hit
                             if (this.allEnemiesDead() && !this.awaitingRewardChoice) {
                                 this.awaitingRewardChoice = true;
-                                this.time.delayedCall(1500, () => this.showRewardScreen());
+                                this.time.delayedCall(1500, () => {
+                                    if (this.devMode) { this.showRewardScreen(); }
+                                    else { this.awaitingRewardChoice = false; this.startNextBattle(); }
+                                });
                                 this.isSwapping = true;
                             }
                             this.updateEnemyUI();
@@ -2089,7 +2097,10 @@ class Match3Scene extends Phaser.Scene {
         if (this.allEnemiesDead()) {
             if (!this.awaitingRewardChoice) {
                 this.awaitingRewardChoice = true;
-                this.time.delayedCall(1500, () => this.showRewardScreen());
+                this.time.delayedCall(1500, () => {
+                    if (this.devMode) { this.showRewardScreen(); }
+                    else { this.awaitingRewardChoice = false; this.startNextBattle(); }
+                });
             }
             this.isSwapping = true;
         }
@@ -2215,7 +2226,10 @@ class Match3Scene extends Phaser.Scene {
         if (this.allEnemiesDead()) {
             if (!this.awaitingRewardChoice) {
                 this.awaitingRewardChoice = true;
-                this.time.delayedCall(1500, () => this.showRewardScreen());
+                this.time.delayedCall(1500, () => {
+                    if (this.devMode) { this.showRewardScreen(); }
+                    else { this.awaitingRewardChoice = false; this.startNextBattle(); }
+                });
             }
             return;
         }
@@ -5417,19 +5431,22 @@ class Match3Scene extends Phaser.Scene {
         this.buildEnemyGroup(this.battleNumber, this.hudContainer);
         if (this.enemyEncounterLabel) this.enemyEncounterLabel.setText('');
         // --- Gold display (under player HP bar) ---
-        this.goldDisplayIcon = this.add.text(14, 190, '\ud83e\ude99', { fontSize: '14px' }).setOrigin(0, 0.5);
-        this.goldDisplayText = this.add.text(32, 190, '0', { fontSize: '13px', color: '#ffd966', fontStyle: 'bold' }).setOrigin(0, 0.5);
-        this.hudContainer.add([this.goldDisplayIcon, this.goldDisplayText]);
+        // --- Gold display and full-game screens/buttons (dev mode only) ---
+        if (this.devMode) {
+            this.goldDisplayIcon = this.add.text(14, 190, '\ud83e\ude99', { fontSize: '14px' }).setOrigin(0, 0.5);
+            this.goldDisplayText = this.add.text(32, 190, '0', { fontSize: '13px', color: '#ffd966', fontStyle: 'bold' }).setOrigin(0, 0.5);
+            this.hudContainer.add([this.goldDisplayIcon, this.goldDisplayText]);
 
-        this.createEquipmentScreen();
-        this.createSkillsScreen();
-        this.createTalentScreen();
-        this.createStoreScreen();
-        // 4 buttons evenly spaced across 390px width
-        this.createEquipmentButton(49, 210);
-        this.createSkillsButton(147, 210);
-        this.createTalentButton(245, 210);
-        this.createStoreButton(343, 210);
+            this.createEquipmentScreen();
+            this.createSkillsScreen();
+            this.createTalentScreen();
+            this.createStoreScreen();
+            // 4 buttons evenly spaced across 390px width
+            this.createEquipmentButton(49, 210);
+            this.createSkillsButton(147, 210);
+            this.createTalentButton(245, 210);
+            this.createStoreButton(343, 210);
+        }
 
         this.updatePlayerUI();
         this.updateEnemyUI();
@@ -5872,12 +5889,16 @@ class Match3Scene extends Phaser.Scene {
         this.updateEnemyUI();
 
         this.isSwapping = false;
-        this.player.talentPoints += 1;
-        this.updateTalentButtonGlow();
+        if (this.devMode) {
+            this.player.talentPoints += 1;
+            this.updateTalentButtonGlow();
+        }
         this.showGameScreen();
         const enemyNames = this.enemies.map(e => e.name).join(', ');
         this.addCombatLog(`Battle ${this.battleNumber}: ${enemyNames} appear! (${this.encounterSize} foe${this.encounterSize > 1 ? 's' : ''})`, '#ffcc66');
-        this.addCombatLog(`Talent point earned! (${this.player.talentPoints} available)`, '#ffd700');
+        if (this.devMode) {
+            this.addCombatLog(`Talent point earned! (${this.player.talentPoints} available)`, '#ffd700');
+        }
     }
 
     createEquipmentButton(x, y) {
@@ -9347,7 +9368,10 @@ class Match3Scene extends Phaser.Scene {
                 if (!this.awaitingRewardChoice) {
                     this.awaitingRewardChoice = true;
                     this.stopAllParticleEffects();
-                    this.time.delayedCall(1500, () => this.showRewardScreen());
+                    this.time.delayedCall(1500, () => {
+                        if (this.devMode) { this.showRewardScreen(); }
+                        else { this.awaitingRewardChoice = false; this.startNextBattle(); }
+                    });
                 }
                 this.isSwapping = true;
             }
@@ -9558,7 +9582,10 @@ class Match3Scene extends Phaser.Scene {
                 if (!this.awaitingRewardChoice) {
                     this.awaitingRewardChoice = true;
                     this.stopAllParticleEffects();
-                    this.time.delayedCall(1500, () => this.showRewardScreen());
+                    this.time.delayedCall(1500, () => {
+                        if (this.devMode) { this.showRewardScreen(); }
+                        else { this.awaitingRewardChoice = false; this.startNextBattle(); }
+                    });
                 }
                 return;
             }
@@ -9956,40 +9983,47 @@ class TownScene extends Phaser.Scene {
             stroke: '#000000', strokeThickness: 6
         }).setOrigin(0.5);
 
-        // 5 animals × 8 frames each; frames are uniformly 240×256, bottom-center anchored
-        for (let i = 0; i < 5; i++) {
-            const key = 'rescue_' + i + '_idle';
-            if (!this.anims.exists(key)) {
-                this.anims.create({
-                    key,
-                    frames: this.anims.generateFrameNumbers('rescues', { start: i * 8, end: i * 8 + 7 }),
-                    frameRate: 6,
-                    repeat: -1
-                });
-            }
-        }
-
-        // Two rows of 3 (only 5 animals, last slot empty) — scale 0.38 gives ~91×97 px each
-        const SCALE = 0.38;
-        const animalLayout = [
-            { x: 68,  y: 315 },
-            { x: 195, y: 315 },
-            { x: 322, y: 315 },
-            { x: 120, y: 480 },
-            { x: 270, y: 480 }
-        ];
-        animalLayout.forEach((pos, i) => {
-            const sprite = this.add.sprite(pos.x, pos.y, 'rescues')
-                .setScale(SCALE)
-                .setOrigin(0.5, 1.0);  // bottom-center: feet stay planted
-            // Stagger animation start so animals don't all blink in sync
-            this.time.delayedCall(i * 200, () => {
-                if (sprite && sprite.active) sprite.play('rescue_' + i + '_idle');
+        // Guinea pig warrior idle — standing alone in the empty town
+        if (!this.anims.exists('town_warrior_idle')) {
+            this.anims.create({
+                key: 'town_warrior_idle',
+                frames: this.anims.generateFrameNumbers('warrior', { start: 0, end: 5 }),
+                frameRate: 5,
+                repeat: -1
             });
-        });
+        }
+        const heroY = Math.round(H * 0.60);
+        const heroSprite = this.add.sprite(W / 2, heroY, 'warrior')
+            .setScale(1.8)
+            .setOrigin(0.5, 1.0);
+        heroSprite.play('town_warrior_idle');
 
-        // "Into the Forest" button
-        const btnW = 220;
+        // Thought bubble: positioned to the upper-right, clear of the warrior's body
+        const bubbleCX = W / 2 + 90;
+        const bubbleCY = heroY - 290;
+        const bubbleW  = 200;
+        const bubbleH  = 70;
+        const gfx = this.add.graphics();
+        gfx.fillStyle(0xffffff, 0.93);
+        gfx.fillRoundedRect(bubbleCX - bubbleW / 2, bubbleCY - bubbleH / 2, bubbleW, bubbleH, 18);
+        gfx.lineStyle(2, 0x999999, 0.75);
+        gfx.strokeRoundedRect(bubbleCX - bubbleW / 2, bubbleCY - bubbleH / 2, bubbleW, bubbleH, 18);
+        // Trailing thought dots curving toward the warrior's head (upper-center of sprite)
+        const dotAnchorX = W / 2 + 16;
+        const dotAnchorY = heroY - 210;
+        [[dotAnchorX, dotAnchorY, 8], [dotAnchorX + 14, dotAnchorY - 22, 5.5], [dotAnchorX + 26, dotAnchorY - 42, 3.5]].forEach(([dx, dy, dr]) => {
+            gfx.fillStyle(0xffffff, 0.93);
+            gfx.fillCircle(dx, dy, dr);
+            gfx.lineStyle(1.5, 0x999999, 0.75);
+            gfx.strokeCircle(dx, dy, dr);
+        });
+        this.add.text(bubbleCX, bubbleCY, 'I guess I\'d better\npoke around...', {
+            fontSize: '15px', color: '#222222',
+            align: 'center', lineSpacing: 3
+        }).setOrigin(0.5);
+
+        // "Enter the Forest" button — stripped-down arcade mode
+        const btnW = 230;
         const btnH = 54;
         const btnY = H - 100;
 
@@ -9997,32 +10031,28 @@ class TownScene extends Phaser.Scene {
             .setStrokeStyle(3, 0x66ff66)
             .setInteractive({ useHandCursor: true });
 
-        this.add.text(W / 2, btnY, 'Into the Forest', {
+        this.add.text(W / 2, btnY, 'Enter the Forest', {
             fontSize: '22px', color: '#ffffff', fontStyle: 'bold',
             stroke: '#000000', strokeThickness: 3
         }).setOrigin(0.5);
 
         btnBg.on('pointerover', () => btnBg.setFillStyle(0x2d6e2d));
         btnBg.on('pointerout',  () => btnBg.setFillStyle(0x1a4d1a));
-        btnBg.on('pointerup',   () => this.scene.start('Match3Scene'));
+        btnBg.on('pointerup',   () => this.scene.start('Match3Scene', { devMode: false }));
 
-        // "Talk to Clover" button — opens the rescue dialogue
-        const dlgBtnW = 220;
-        const dlgBtnH = 48;
-        const dlgBtnY = H - 164;
-
-        const dlgBtnBg = this.add.rectangle(W / 2, dlgBtnY, dlgBtnW, dlgBtnH, 0x2a1a4d, 1)
-            .setStrokeStyle(3, 0xaa88ff)
+        // Dev Mode button — top-right, launches full game with all systems
+        const devBtnCX = W - 46;
+        const devBtnCY = 20;
+        const devBtnBg = this.add.rectangle(devBtnCX, devBtnCY, 82, 28, 0x1a0028, 0.90)
+            .setStrokeStyle(1, 0xbb44ff)
             .setInteractive({ useHandCursor: true });
-
-        this.add.text(W / 2, dlgBtnY, '💬 Talk to Clover', {
-            fontSize: '20px', color: '#ddccff', fontStyle: 'bold',
-            stroke: '#000000', strokeThickness: 3
+        this.add.text(devBtnCX, devBtnCY, 'Dev Mode', {
+            fontSize: '12px', color: '#cc88ff', fontStyle: 'bold',
+            stroke: '#000000', strokeThickness: 2
         }).setOrigin(0.5);
-
-        dlgBtnBg.on('pointerover', () => dlgBtnBg.setFillStyle(0x3d2870));
-        dlgBtnBg.on('pointerout',  () => dlgBtnBg.setFillStyle(0x2a1a4d));
-        dlgBtnBg.on('pointerup',   () => this.scene.start('DialogueScene', { returnScene: 'TownScene' }));
+        devBtnBg.on('pointerover', () => devBtnBg.setFillStyle(0x330044));
+        devBtnBg.on('pointerout',  () => devBtnBg.setFillStyle(0x1a0028));
+        devBtnBg.on('pointerup',   () => this.scene.start('Match3Scene', { devMode: true }));
     }
 }
 
