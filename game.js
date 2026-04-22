@@ -978,6 +978,35 @@ const TALENT_TREE_CONNECTIONS = [
 const TALENT_NODE_MAP = new Map();
 TALENT_TREE_NODES.forEach(n => TALENT_NODE_MAP.set(n.id, n));
 
+// ---------------------------------------------------------------------------
+// Settings helpers — persist user preferences to localStorage
+// ---------------------------------------------------------------------------
+function getGameSettings() {
+    return {
+        musicEnabled:     localStorage.getItem('fq_music')     !== 'false',
+        tutorialsEnabled: localStorage.getItem('fq_tutorials') !== 'false'
+    };
+}
+function saveGameSettings(settings) {
+    localStorage.setItem('fq_music',     settings.musicEnabled     ? 'true' : 'false');
+    localStorage.setItem('fq_tutorials', settings.tutorialsEnabled ? 'true' : 'false');
+}
+function isTutorialSeen(id) {
+    try {
+        const seen = JSON.parse(localStorage.getItem('fq_tutorials_seen') || '[]');
+        return Array.isArray(seen) && seen.includes(id);
+    } catch (e) { return false; }
+}
+function markTutorialSeen(id) {
+    try {
+        const seen = JSON.parse(localStorage.getItem('fq_tutorials_seen') || '[]');
+        if (!seen.includes(id)) { seen.push(id); localStorage.setItem('fq_tutorials_seen', JSON.stringify(seen)); }
+    } catch (e) {}
+}
+function resetTutorialsSeen() {
+    try { localStorage.removeItem('fq_tutorials_seen'); } catch (e) {}
+}
+
 class Match3Scene extends Phaser.Scene {
     // Track when the store was last refreshed
     // (initialize in constructor)
@@ -1107,6 +1136,14 @@ class Match3Scene extends Phaser.Scene {
         // Enemy info popup (long-press on enemy)
         this.enemyInfoPopup = null;
         this.enemyInfoPopupSpriteRef = null;
+
+        // Settings menu & tutorial popup
+        this.settingsMenuGroup  = null;
+        this.tutorialPopupGroup = null;
+        this._settingsMusicBtn  = null;
+        this._settingsMusicText = null;
+        this._settingsTutBtn    = null;
+        this._settingsTutText   = null;
     }
 
     // -------------------------------------------------------------------------
@@ -1816,7 +1853,9 @@ class Match3Scene extends Phaser.Scene {
 
         // Music
         this.sound.stopAll();
-        this.sound.play('battlesong', { loop: true, volume: 0.6 });
+        if (getGameSettings().musicEnabled) {
+            this.sound.play('battlesong', { loop: true, volume: 0.6 });
+        }
 
         // Forest background
         const _forestBg = this.add.image(this.sys.game.config.width / 2, this.sys.game.config.height / 2, 'forest');
@@ -1835,6 +1874,10 @@ class Match3Scene extends Phaser.Scene {
         this.player.health = this.getMaxHealth();
         this.refillEnergyShield();
         this.createCombatLog();
+        this.createSettingsButton();
+        this.createSettingsMenu();
+        this.initTutorials();
+
         if (this.devMode) {
             this.createRewardScreen();
         }
@@ -7875,6 +7918,219 @@ class Match3Scene extends Phaser.Scene {
         this.setGameBoardActive(true);
     }
 
+    // -------------------------------------------------------------------------
+    // Settings button & menu
+    // -------------------------------------------------------------------------
+
+    createSettingsButton() {
+        const W = this.sys.game.config.width;
+        const btnX = W - 18;
+        const btnY = 18;
+        this.settingsBtnBg = this.add.circle(btnX, btnY, 15, 0x1e1e2e, 0.88)
+            .setDepth(8500)
+            .setStrokeStyle(1.5, 0x8877cc)
+            .setInteractive({ useHandCursor: true });
+        this.settingsBtnIcon = this.add.text(btnX, btnY, '⚙️', { fontSize: '14px' })
+            .setOrigin(0.5).setDepth(8501);
+        this.settingsBtnBg.on('pointerover', () => this.settingsBtnBg.setFillStyle(0x44446e, 0.95));
+        this.settingsBtnBg.on('pointerout',  () => this.settingsBtnBg.setFillStyle(0x1e1e2e, 0.88));
+        this.settingsBtnBg.on('pointerup',   () => this.openSettingsMenu());
+    }
+
+    createSettingsMenu() {
+        const W = this.sys.game.config.width;
+        const H = this.sys.game.config.height;
+        this.settingsMenuGroup = this.add.container(0, 0).setVisible(false).setDepth(9000);
+
+        const overlay = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.75).setInteractive();
+        const panelW = 320;
+        const panelH = 310;
+        const pX = W / 2;
+        const pY = H / 2 - 10;
+
+        const panel = this.add.rectangle(pX, pY, panelW, panelH, 0x1a1a2e, 1).setStrokeStyle(2, 0x7766cc);
+        const title = this.add.text(pX, pY - panelH / 2 + 28, '⚙️  Settings', {
+            fontSize: '24px', color: '#ffe066', fontStyle: 'bold',
+            stroke: '#000000', strokeThickness: 4
+        }).setOrigin(0.5);
+        const divider = this.add.rectangle(pX, pY - panelH / 2 + 50, panelW - 28, 1, 0x555588);
+
+        // Music toggle row
+        const musicY = pY - 65;
+        const musicLabel = this.add.text(pX - panelW / 2 + 22, musicY, '🎵  Music', {
+            fontSize: '18px', color: '#ddddff'
+        }).setOrigin(0, 0.5);
+        this._settingsMusicBtn = this.add.rectangle(pX + 88, musicY, 90, 32, 0x228833, 1)
+            .setStrokeStyle(2, 0x44cc66).setInteractive({ useHandCursor: true });
+        this._settingsMusicText = this.add.text(pX + 88, musicY, 'ON', {
+            fontSize: '15px', color: '#ffffff', fontStyle: 'bold'
+        }).setOrigin(0.5);
+        this._settingsMusicBtn.on('pointerover', () => this._settingsMusicBtn.setAlpha(0.8));
+        this._settingsMusicBtn.on('pointerout',  () => this._settingsMusicBtn.setAlpha(1.0));
+        this._settingsMusicBtn.on('pointerup',   () => this.toggleMusicSetting());
+
+        // Tutorials toggle row
+        const tutY = pY;
+        const tutLabel = this.add.text(pX - panelW / 2 + 22, tutY, '📖  Tutorials', {
+            fontSize: '18px', color: '#ddddff'
+        }).setOrigin(0, 0.5);
+        this._settingsTutBtn = this.add.rectangle(pX + 88, tutY, 90, 32, 0x228833, 1)
+            .setStrokeStyle(2, 0x44cc66).setInteractive({ useHandCursor: true });
+        this._settingsTutText = this.add.text(pX + 88, tutY, 'ON', {
+            fontSize: '15px', color: '#ffffff', fontStyle: 'bold'
+        }).setOrigin(0.5);
+        this._settingsTutBtn.on('pointerover', () => this._settingsTutBtn.setAlpha(0.8));
+        this._settingsTutBtn.on('pointerout',  () => this._settingsTutBtn.setAlpha(1.0));
+        this._settingsTutBtn.on('pointerup',   () => this.toggleTutorialsSetting());
+
+        // Reset tutorials row
+        const resetY = pY + 70;
+        const resetBg = this.add.rectangle(pX, resetY, 244, 30, 0x2a2a44, 1)
+            .setStrokeStyle(1, 0x6666aa).setInteractive({ useHandCursor: true });
+        const resetText = this.add.text(pX, resetY, 'Reset Tutorial Progress', {
+            fontSize: '13px', color: '#aaaaee'
+        }).setOrigin(0.5);
+        resetBg.on('pointerover', () => resetBg.setFillStyle(0x3a3a66));
+        resetBg.on('pointerout',  () => resetBg.setFillStyle(0x2a2a44));
+        resetBg.on('pointerup',   () => {
+            resetTutorialsSeen();
+            this.addCombatLog('Tutorial progress reset.', '#aaaaee');
+        });
+
+        // Close button
+        const closeY = pY + panelH / 2 - 28;
+        const closeBg = this.add.rectangle(pX, closeY, 140, 36, 0x553322, 1)
+            .setStrokeStyle(2, 0xcc6644).setInteractive({ useHandCursor: true });
+        const closeText = this.add.text(pX, closeY, 'Close', {
+            fontSize: '18px', color: '#ffffff', fontStyle: 'bold'
+        }).setOrigin(0.5);
+        closeBg.on('pointerover', () => closeBg.setFillStyle(0x774433));
+        closeBg.on('pointerout',  () => closeBg.setFillStyle(0x553322));
+        closeBg.on('pointerup',   () => this.closeSettingsMenu());
+
+        this.settingsMenuGroup.add([
+            overlay, panel, title, divider,
+            musicLabel, this._settingsMusicBtn, this._settingsMusicText,
+            tutLabel,   this._settingsTutBtn,   this._settingsTutText,
+            resetBg, resetText,
+            closeBg, closeText
+        ]);
+    }
+
+    openSettingsMenu() {
+        if (!this.settingsMenuGroup) return;
+        const s = getGameSettings();
+        this._updateSettingsToggle(this._settingsMusicBtn, this._settingsMusicText, s.musicEnabled);
+        this._updateSettingsToggle(this._settingsTutBtn,   this._settingsTutText,   s.tutorialsEnabled);
+        this.settingsMenuGroup.setVisible(true);
+    }
+
+    closeSettingsMenu() {
+        if (this.settingsMenuGroup) this.settingsMenuGroup.setVisible(false);
+    }
+
+    _updateSettingsToggle(btn, text, enabled) {
+        if (!btn || !text) return;
+        btn.setFillStyle(enabled ? 0x228833 : 0x882222)
+           .setStrokeStyle(2, enabled ? 0x44cc66 : 0xff4444)
+           .setAlpha(1.0);
+        text.setText(enabled ? 'ON' : 'OFF');
+    }
+
+    toggleMusicSetting() {
+        const s = getGameSettings();
+        s.musicEnabled = !s.musicEnabled;
+        saveGameSettings(s);
+        this._updateSettingsToggle(this._settingsMusicBtn, this._settingsMusicText, s.musicEnabled);
+        if (s.musicEnabled) {
+            this.sound.stopAll();
+            this.sound.play('battlesong', { loop: true, volume: 0.6 });
+        } else {
+            this.sound.stopAll();
+        }
+    }
+
+    toggleTutorialsSetting() {
+        const s = getGameSettings();
+        s.tutorialsEnabled = !s.tutorialsEnabled;
+        saveGameSettings(s);
+        this._updateSettingsToggle(this._settingsTutBtn, this._settingsTutText, s.tutorialsEnabled);
+    }
+
+    // -------------------------------------------------------------------------
+    // Tutorial popup system
+    // -------------------------------------------------------------------------
+
+    initTutorials() {
+        // Show the first tutorial after a short delay to let the battle start
+        this.time.delayedCall(900, () => {
+            this.showTutorialPopup(
+                'tutorial_swap',
+                'Drag a tile onto its neighbor to swap them!\nMatch 3 or more of the same tile type in a row or column to activate their effects.',
+                null
+            );
+        });
+    }
+
+    showTutorialPopup(id, message, onDismiss) {
+        // Skip if tutorials are off or this one was already seen
+        if (!getGameSettings().tutorialsEnabled || isTutorialSeen(id)) {
+            if (onDismiss) onDismiss();
+            return;
+        }
+        markTutorialSeen(id);
+
+        // Dismiss any popup already on screen
+        if (this.tutorialPopupGroup) {
+            this.tutorialPopupGroup.destroy(true);
+            this.tutorialPopupGroup = null;
+        }
+
+        const W  = this.sys.game.config.width;
+        const H  = this.sys.game.config.height;
+        const panelW = 352;
+        const panelH = 174;
+        const pX  = W / 2;
+        const pY  = H - 132;
+
+        this.tutorialPopupGroup = this.add.container(0, 0).setDepth(9200).setAlpha(0);
+
+        const overlay  = this.add.rectangle(pX, pY, panelW + 18, panelH + 18, 0x000000, 0.55).setInteractive();
+        const panel    = this.add.rectangle(pX, pY, panelW, panelH, 0x12122a, 0.97).setStrokeStyle(2, 0x8877dd);
+        const header   = this.add.text(pX, pY - panelH / 2 + 17, '📖  Tutorial', {
+            fontSize: '13px', color: '#bbaaff', fontStyle: 'bold'
+        }).setOrigin(0.5);
+        const msgText  = this.add.text(pX, pY - 10, message, {
+            fontSize: '14px', color: '#e8e8ff',
+            wordWrap: { width: panelW - 28, useAdvancedWrap: true },
+            align: 'center', lineSpacing: 5
+        }).setOrigin(0.5);
+        const gotItBg  = this.add.rectangle(pX, pY + panelH / 2 - 20, 112, 28, 0x334488, 1)
+            .setStrokeStyle(1, 0x7788dd).setInteractive({ useHandCursor: true });
+        const gotItTxt = this.add.text(pX, pY + panelH / 2 - 20, 'Got it!', {
+            fontSize: '14px', color: '#ffffff', fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        gotItBg.on('pointerover', () => gotItBg.setFillStyle(0x4455aa));
+        gotItBg.on('pointerout',  () => gotItBg.setFillStyle(0x334488));
+        gotItBg.on('pointerup',   () => { this.dismissTutorialPopup(); if (onDismiss) onDismiss(); });
+
+        this.tutorialPopupGroup.add([overlay, panel, header, msgText, gotItBg, gotItTxt]);
+
+        // Fade-in
+        this.tweens.add({ targets: this.tutorialPopupGroup, alpha: 1, duration: 260, ease: 'Sine.easeOut' });
+    }
+
+    dismissTutorialPopup() {
+        if (!this.tutorialPopupGroup) return;
+        const grp = this.tutorialPopupGroup;
+        this.tutorialPopupGroup = null;
+        this.tweens.add({
+            targets: grp, alpha: 0, duration: 200, ease: 'Sine.easeIn',
+            onComplete: () => { grp.destroy(true); }
+        });
+    }
+
     updateEquipmentScreen() {
         if (!this.equipmentText || !this.equipmentIconText) return;
 
@@ -9419,6 +9675,15 @@ class Match3Scene extends Phaser.Scene {
         this.updatePlayerUI();
         this.updateEnemyUI();
         this.renderGrid();
+
+        // Tutorial: explain tile effects after the first successful match
+        this.time.delayedCall(900, () => {
+            this.showTutorialPopup(
+                'tutorial_damage',
+                '⚔️ Physical, 🏹 Ranged & 📖 Magic tiles deal damage to enemies.\n♥ Heart tiles restore your HP. 🪙 Gold tiles earn you gold!',
+                null
+            );
+        });
     }
 
     applyGravity() {
@@ -9555,6 +9820,15 @@ class Match3Scene extends Phaser.Scene {
     enemyAttack() {
         const alive = this.getAliveEnemies();
         if (alive.length === 0 || this.awaitingRewardChoice) return;
+
+        // Tutorial: warn player that enemies fight back (shown on first enemy turn)
+        this.time.delayedCall(400, () => {
+            this.showTutorialPopup(
+                'tutorial_enemy',
+                'After each of your turns, the enemy strikes back!\nKeep your health above zero — if it drops to 0, you are defeated.',
+                null
+            );
+        });
 
         // Flame tiles spread: each flame tile has 50% chance to convert an adjacent tile
         this.processFlameTileSpread();
@@ -9977,9 +10251,11 @@ class TownScene extends Phaser.Scene {
         const W = this.sys.game.config.width;
         const H = this.sys.game.config.height;
 
-        // Music
+        // Music — respect settings
         this.sound.stopAll();
-        this.sound.play('townsong', { loop: true, volume: 0.6 });
+        if (getGameSettings().musicEnabled) {
+            this.sound.play('townsong', { loop: true, volume: 0.6 });
+        }
 
         // Background: town image scaled to fill
         const bg = this.add.image(W / 2, H / 2, 'town');
@@ -10050,8 +10326,8 @@ class TownScene extends Phaser.Scene {
         btnBg.on('pointerout',  () => btnBg.setFillStyle(0x1a4d1a));
         btnBg.on('pointerup',   () => this.scene.start('Match3Scene', { devMode: false }));
 
-        // Dev Mode button — top-right, launches full game with all systems
-        const devBtnCX = W - 46;
+        // Dev Mode button — shifted left to make room for the settings button
+        const devBtnCX = W - 96;
         const devBtnCY = 20;
         const devBtnBg = this.add.rectangle(devBtnCX, devBtnCY, 82, 28, 0x1a0028, 0.90)
             .setStrokeStyle(1, 0xbb44ff)
@@ -10063,6 +10339,101 @@ class TownScene extends Phaser.Scene {
         devBtnBg.on('pointerover', () => devBtnBg.setFillStyle(0x330044));
         devBtnBg.on('pointerout',  () => devBtnBg.setFillStyle(0x1a0028));
         devBtnBg.on('pointerup',   () => this.scene.start('Match3Scene', { devMode: true }));
+
+        // Settings button — top-right corner (⚙️)
+        const settingsBtnBg = this.add.circle(W - 18, 18, 15, 0x1e1e2e, 0.88)
+            .setDepth(100)
+            .setStrokeStyle(1.5, 0x8877cc)
+            .setInteractive({ useHandCursor: true });
+        this.add.text(W - 18, 18, '⚙️', { fontSize: '14px' }).setOrigin(0.5).setDepth(101);
+        settingsBtnBg.on('pointerover', () => settingsBtnBg.setFillStyle(0x44446e, 0.95));
+        settingsBtnBg.on('pointerout',  () => settingsBtnBg.setFillStyle(0x1e1e2e, 0.88));
+        settingsBtnBg.on('pointerup',   () => settingsMenu.setVisible(true));
+
+        // Settings menu overlay (built inline for TownScene)
+        const settingsMenu = this.add.container(0, 0).setVisible(false).setDepth(500);
+        const smOverlay = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.75).setInteractive();
+        const smPanelW = 320, smPanelH = 310;
+        const smPX = W / 2, smPY = H / 2 - 10;
+        const smPanel  = this.add.rectangle(smPX, smPY, smPanelW, smPanelH, 0x1a1a2e, 1).setStrokeStyle(2, 0x7766cc);
+        const smTitle  = this.add.text(smPX, smPY - smPanelH / 2 + 28, '⚙️  Settings', {
+            fontSize: '24px', color: '#ffe066', fontStyle: 'bold', stroke: '#000000', strokeThickness: 4
+        }).setOrigin(0.5);
+        const smDivider = this.add.rectangle(smPX, smPY - smPanelH / 2 + 50, smPanelW - 28, 1, 0x555588);
+
+        // Music toggle
+        const smMusicY = smPY - 65;
+        const smMusicLabel = this.add.text(smPX - smPanelW / 2 + 22, smMusicY, '🎵  Music', { fontSize: '18px', color: '#ddddff' }).setOrigin(0, 0.5);
+        const smMusicBtn = this.add.rectangle(smPX + 88, smMusicY, 90, 32, 0x228833, 1)
+            .setStrokeStyle(2, 0x44cc66).setInteractive({ useHandCursor: true });
+        const smMusicTxt = this.add.text(smPX + 88, smMusicY, 'ON', { fontSize: '15px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5);
+        const updateSmMusic = () => {
+            const on = getGameSettings().musicEnabled;
+            smMusicBtn.setFillStyle(on ? 0x228833 : 0x882222).setStrokeStyle(2, on ? 0x44cc66 : 0xff4444);
+            smMusicTxt.setText(on ? 'ON' : 'OFF');
+        };
+        smMusicBtn.on('pointerover', () => smMusicBtn.setAlpha(0.8));
+        smMusicBtn.on('pointerout',  () => smMusicBtn.setAlpha(1.0));
+        smMusicBtn.on('pointerup',   () => {
+            const s = getGameSettings();
+            s.musicEnabled = !s.musicEnabled;
+            saveGameSettings(s);
+            updateSmMusic();
+            if (s.musicEnabled) { this.sound.stopAll(); this.sound.play('townsong', { loop: true, volume: 0.6 }); }
+            else { this.sound.stopAll(); }
+        });
+
+        // Tutorials toggle
+        const smTutY = smPY;
+        const smTutLabel = this.add.text(smPX - smPanelW / 2 + 22, smTutY, '📖  Tutorials', { fontSize: '18px', color: '#ddddff' }).setOrigin(0, 0.5);
+        const smTutBtn = this.add.rectangle(smPX + 88, smTutY, 90, 32, 0x228833, 1)
+            .setStrokeStyle(2, 0x44cc66).setInteractive({ useHandCursor: true });
+        const smTutTxt = this.add.text(smPX + 88, smTutY, 'ON', { fontSize: '15px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5);
+        const updateSmTut = () => {
+            const on = getGameSettings().tutorialsEnabled;
+            smTutBtn.setFillStyle(on ? 0x228833 : 0x882222).setStrokeStyle(2, on ? 0x44cc66 : 0xff4444);
+            smTutTxt.setText(on ? 'ON' : 'OFF');
+        };
+        smTutBtn.on('pointerover', () => smTutBtn.setAlpha(0.8));
+        smTutBtn.on('pointerout',  () => smTutBtn.setAlpha(1.0));
+        smTutBtn.on('pointerup',   () => {
+            const s = getGameSettings();
+            s.tutorialsEnabled = !s.tutorialsEnabled;
+            saveGameSettings(s);
+            updateSmTut();
+        });
+
+        // Reset tutorials row
+        const smResetY = smPY + 70;
+        const smResetBg = this.add.rectangle(smPX, smResetY, 244, 30, 0x2a2a44, 1)
+            .setStrokeStyle(1, 0x6666aa).setInteractive({ useHandCursor: true });
+        const smResetTxt = this.add.text(smPX, smResetY, 'Reset Tutorial Progress', { fontSize: '13px', color: '#aaaaee' }).setOrigin(0.5);
+        smResetBg.on('pointerover', () => smResetBg.setFillStyle(0x3a3a66));
+        smResetBg.on('pointerout',  () => smResetBg.setFillStyle(0x2a2a44));
+        smResetBg.on('pointerup',   () => resetTutorialsSeen());
+
+        // Close button
+        const smCloseY = smPY + smPanelH / 2 - 28;
+        const smCloseBg = this.add.rectangle(smPX, smCloseY, 140, 36, 0x553322, 1)
+            .setStrokeStyle(2, 0xcc6644).setInteractive({ useHandCursor: true });
+        const smCloseTxt = this.add.text(smPX, smCloseY, 'Close', { fontSize: '18px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5);
+        smCloseBg.on('pointerover', () => smCloseBg.setFillStyle(0x774433));
+        smCloseBg.on('pointerout',  () => smCloseBg.setFillStyle(0x553322));
+        smCloseBg.on('pointerup',   () => settingsMenu.setVisible(false));
+
+        // Wire up the open function to also refresh toggle states
+        settingsBtnBg.off('pointerup').on('pointerup', () => {
+            updateSmMusic();
+            updateSmTut();
+            settingsMenu.setVisible(true);
+        });
+
+        settingsMenu.add([
+            smOverlay, smPanel, smTitle, smDivider,
+            smMusicLabel, smMusicBtn, smMusicTxt,
+            smTutLabel, smTutBtn, smTutTxt,
+            smResetBg, smResetTxt, smCloseBg, smCloseTxt
+        ]);
     }
 }
 
