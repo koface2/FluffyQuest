@@ -1022,6 +1022,12 @@ function getSkillGemsUnlocked() {
 function setSkillGemsUnlocked(val) {
     localStorage.setItem('fq_skill_gems_unlocked', val ? 'true' : 'false');
 }
+function getChosenStarterSkill() {
+    return localStorage.getItem('fq_starter_skill') || null;
+}
+function setChosenStarterSkill(skillId) {
+    localStorage.setItem('fq_starter_skill', skillId);
+}
 
 class Match3Scene extends Phaser.Scene {
     // Track when the store was last refreshed
@@ -1212,6 +1218,7 @@ class Match3Scene extends Phaser.Scene {
         this.isSwapping = false;
         this.dragStart = null;
         this.awaitingRewardChoice = false;
+        // NOTE: tutorial seen flags persist permanently in localStorage — do NOT reset here
     }
 
     // -------------------------------------------------------------------------
@@ -1333,13 +1340,18 @@ class Match3Scene extends Phaser.Scene {
 
     getEnemyGroupStats(battleNumber, enemyCount) {
         let baseHP, baseAtk;
-        if (battleNumber <= 8) {
-            baseHP = 22 + (battleNumber - 1) * 10;
-            baseAtk = 3 + Math.floor((battleNumber - 1) * 1.2);
+        if (battleNumber <= 7) {
+            // Gentle ramp leading to first boss — keeps early game learnable
+            // B1:12/2  B2:18/2  B3:24/3  B4:30/3  B5:36/4  B6:42/4  B7(boss):48/5
+            baseHP  = 12 + (battleNumber - 1) * 6;
+            baseAtk =  2 + Math.floor((battleNumber - 1) * 0.5);
+        } else if (battleNumber === 8) {
+            baseHP  = 56;
+            baseAtk = 6;
         } else {
-            // After level 8, scale up more aggressively
-            baseHP = 22 + 7 * 10 + (battleNumber - 8) * 22;
-            baseAtk = 1 + Math.floor(7 * 0.8) + Math.floor((battleNumber - 8) * 2.2);
+            // After level 8, scale up aggressively (anchored to new battle-8 baseline)
+            baseHP  = 56 + (battleNumber - 8) * 18;
+            baseAtk =  6 + Math.floor((battleNumber - 8) * 1.8);
         }
         if (enemyCount === 1) return { hp: baseHP, atk: baseAtk };
         const hpPerEnemy = Math.floor(baseHP * 0.85 / enemyCount);
@@ -1909,10 +1921,14 @@ class Match3Scene extends Phaser.Scene {
     }
 
     createInitialSkillLoadout() {
+        // If the player has chosen a starter skill via Clover's gem gift, use only that one.
+        // Otherwise fall back to cleave (pre-choice state or dev mode).
+        const chosen = getChosenStarterSkill();
+        const startId = chosen || 'cleave';
         return [
-            { activeId: 'cleave', supportIds: [null, null, null] },
-            { activeId: 'minute-missles', supportIds: [null, null, null] },
-            { activeId: 'multishot', supportIds: [null, null, null] }
+            { activeId: startId, supportIds: [null, null, null] },
+            { activeId: null,    supportIds: [null, null, null] },
+            { activeId: null,    supportIds: [null, null, null] }
         ];
     }
 
@@ -8097,6 +8113,17 @@ class Match3Scene extends Phaser.Scene {
                 null
             );
         });
+
+        // On the first run after skill gems are unlocked, explain how skill charging works
+        if (getSkillGemsUnlocked()) {
+            this.time.delayedCall(1800, () => {
+                this.showTutorialPopup(
+                    'tutorial_skillcharge',
+                    '💎 Skill Gems charge up as you match tiles!\nYour gem charges from matching its tile type — when the bar fills, tap the gem button to unleash the skill.',
+                    null
+                );
+            });
+        }
     }
 
     showTutorialPopup(id, message, onDismiss) {
@@ -10307,7 +10334,7 @@ class TownScene extends Phaser.Scene {
         }
         const heroY = Math.round(H * 0.60);
         const heroSprite = this.add.sprite(W / 2, heroY, 'warrior')
-            .setScale(1.8)
+            .setScale(1.1)
             .setOrigin(0.5, 1.0);
         heroSprite.play('town_warrior_idle');
 
@@ -10349,7 +10376,7 @@ class TownScene extends Phaser.Scene {
             }
             const bunnyX = Math.round(W * 0.73);
             const bunnySprite = this.add.sprite(bunnyX, heroY, 'rescues')
-                .setScale(1.35)
+                .setScale(0.85)
                 .setOrigin(0.5, 1.0);
             bunnySprite.play('town_bunny_idle');
 
@@ -10519,56 +10546,49 @@ class TownScene extends Phaser.Scene {
 
     // ── Gem gift popup — shown the first time the player taps Clover in town ──
     _showGemGiftPopup(W, H) {
+        // ── Phase 1: Clover's introductory dialogue ──────────────────────────
         const DIALOGUE = [
             { speaker: 'bunny', name: 'Clover', text: "Oh! I almost forgot — I found something strange while I was hiding in the forest." },
-            { speaker: 'bunny', name: 'Clover', text: "It glowed and hummed. I was too scared to use it, but I think you'd know what to do with it." },
-            { speaker: 'hero',  name: 'Pipsworth', text: "A skill gem! This will give my abilities real power. Thank you, Clover." },
-            { speaker: 'bunny', name: 'Clover', text: "Be careful out there. And come back in one piece this time!" },
+            { speaker: 'bunny', name: 'Clover', text: "Three gems, actually! They glowed and hummed. I think they each do something different." },
+            { speaker: 'hero',  name: 'Pipsworth', text: "Skill gems! I can only carry one right now. Let me choose wisely." },
+            { speaker: 'bunny', name: 'Clover', text: "Take the one that suits you best. I'll hold onto the others for safekeeping!" },
         ];
 
-        const overlay = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.72)
-            .setDepth(200)
-            .setInteractive();
+        const allObjs = [];
+        const d = 202; // base depth
 
-        const panelW = 330, panelH = 240;
-        const panelX = W / 2, panelY = H / 2;
+        const overlay = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.80).setDepth(200).setInteractive();
+        allObjs.push(overlay);
+
+        const panelW = 346, panelH = 220;
+        const panelX = W / 2, panelY = H / 2 - 10;
         const panel = this.add.rectangle(panelX, panelY, panelW, panelH, 0x1a1a2e, 1)
-            .setStrokeStyle(2, 0xaaddff)
-            .setDepth(201);
+            .setStrokeStyle(2, 0xaaddff).setDepth(201);
+        allObjs.push(panel);
 
-        const gemIcon = this.add.text(panelX, panelY - 68, '💎', { fontSize: '44px' })
-            .setOrigin(0.5)
-            .setDepth(202);
-        this.tweens.add({ targets: gemIcon, y: panelY - 76, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-
-        const titleText = this.add.text(panelX, panelY - 18, 'Skill Gem Received!', {
-            fontSize: '19px', color: '#aaddff', fontStyle: 'bold',
-            stroke: '#000000', strokeThickness: 3
-        }).setOrigin(0.5).setDepth(202);
-
-        let lineIndex = 0;
-        const lineText = this.add.text(panelX, panelY + 32, '', {
-            fontSize: '14px', color: '#eeeeee',
-            wordWrap: { width: panelW - 30, useAdvancedWrap: true },
-            align: 'center', lineSpacing: 3
-        }).setOrigin(0.5).setDepth(202);
-
-        const speakerLabel = this.add.text(panelX, panelY + 8, '', {
-            fontSize: '12px', color: '#ffdd88', fontStyle: 'bold',
+        const speakerLabel = this.add.text(panelX, panelY - panelH / 2 + 20, '', {
+            fontSize: '13px', color: '#aaddff', fontStyle: 'bold',
             stroke: '#000000', strokeThickness: 2
-        }).setOrigin(0.5).setDepth(202);
+        }).setOrigin(0.5).setDepth(d);
+        allObjs.push(speakerLabel);
 
-        const hintText = this.add.text(panelX, panelY + panelH / 2 - 18, '— tap to continue —', {
-            fontSize: '11px', color: '#888888'
-        }).setOrigin(0.5).setDepth(202);
+        const lineText = this.add.text(panelX, panelY, '', {
+            fontSize: '15px', color: '#eeeeee',
+            wordWrap: { width: panelW - 28, useAdvancedWrap: true },
+            align: 'center', lineSpacing: 5
+        }).setOrigin(0.5).setDepth(d);
+        allObjs.push(lineText);
+
+        const hintText = this.add.text(panelX, panelY + panelH / 2 - 16, '— tap to continue —', {
+            fontSize: '11px', color: '#777777'
+        }).setOrigin(0.5).setDepth(d);
+        allObjs.push(hintText);
         this.tweens.add({ targets: hintText, alpha: 0.2, duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
 
-        const allObjs = [overlay, panel, gemIcon, titleText, lineText, speakerLabel, hintText];
-
+        let lineIndex = 0;
         const showLine = (idx) => {
             const line = DIALOGUE[idx];
-            speakerLabel.setText(line.name);
-            speakerLabel.setColor(line.speaker === 'hero' ? '#ffdd88' : '#aaddff');
+            speakerLabel.setText(line.name).setColor(line.speaker === 'hero' ? '#ffdd88' : '#aaddff');
             lineText.setText(line.text);
         };
         showLine(0);
@@ -10576,35 +10596,217 @@ class TownScene extends Phaser.Scene {
         const advance = () => {
             lineIndex++;
             if (lineIndex >= DIALOGUE.length) {
-                // Done — unlock skill gems and clean up
-                setSkillGemsUnlocked(true);
+                // Dialogue done — remove dialogue UI and show the gem picker
+                overlay.off('pointerup', advance);
                 allObjs.forEach(o => o.destroy());
-                overlay.removeInteractive();
-                // Show a brief "Skills Unlocked!" banner
-                const banner = this.add.text(W / 2, H / 2, '✨ Skills Unlocked! ✨', {
-                    fontSize: '24px', color: '#aaddff', fontStyle: 'bold',
-                    stroke: '#000000', strokeThickness: 4
-                }).setOrigin(0.5).setDepth(300).setAlpha(0);
-                this.tweens.add({
-                    targets: banner,
-                    alpha: 1,
-                    y: H / 2 - 30,
-                    duration: 400,
-                    ease: 'Back.easeOut',
-                    onComplete: () => {
-                        this.time.delayedCall(1400, () => {
-                            this.tweens.add({ targets: banner, alpha: 0, duration: 300, onComplete: () => banner.destroy() });
-                        });
-                    }
-                });
-                // Restart TownScene so the bunny speech bubble updates
-                this.time.delayedCall(2200, () => this.scene.restart());
+                allObjs.length = 0;
+                this._showGemPickerUI(W, H);
             } else {
                 showLine(lineIndex);
             }
         };
-
         overlay.on('pointerup', advance);
+    }
+
+    // ── Phase 2: Interactive skill gem picker ──────────────────────────────
+    _showGemPickerUI(W, H) {
+        const GEMS = [
+            {
+                id: 'cleave',
+                imageKey: 'skill_cleave',
+                name: 'Cleave',
+                color: '#ff8866',
+                tileIcon: '⚔️',
+                tileLabel: 'Physical',
+                shortDesc: 'Smash ALL enemies at once. Charges from ⚔️ Physical tile matches.',
+            },
+            {
+                id: 'minute-missles',
+                imageKey: 'skill_minutemissles',
+                name: 'Minute Missles',
+                color: '#88aaff',
+                tileIcon: '📖',
+                tileLabel: 'Magic',
+                shortDesc: 'Fire 4 missiles at random foes. Charges from 📖 Magic tile matches.',
+            },
+            {
+                id: 'multishot',
+                imageKey: 'skill_multishot',
+                name: 'Multishot',
+                color: '#88ee88',
+                tileIcon: '🏹',
+                tileLabel: 'Ranged',
+                shortDesc: 'Unleash a volley on your target. Charges from 🏹 Ranged tile matches.',
+            },
+        ];
+
+        const allObjs = [];
+        const BASE_D = 210;
+
+        const overlay = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.85)
+            .setDepth(200).setInteractive();
+        allObjs.push(overlay);
+
+        // Title
+        const titleY = 80;
+        const title = this.add.text(W / 2, titleY, 'Choose Your Skill Gem', {
+            fontSize: '22px', color: '#ffe066', fontStyle: 'bold',
+            stroke: '#000000', strokeThickness: 4
+        }).setOrigin(0.5).setDepth(BASE_D);
+        allObjs.push(title);
+
+        const subtitle = this.add.text(W / 2, titleY + 30, 'Tap a gem to read about it, then confirm', {
+            fontSize: '13px', color: '#aaaaaa'
+        }).setOrigin(0.5).setDepth(BASE_D);
+        allObjs.push(subtitle);
+
+        // Card dimensions
+        const cardW = 100, cardH = 140;
+        const spacing = 12;
+        const totalW = GEMS.length * cardW + (GEMS.length - 1) * spacing;
+        const startX = W / 2 - totalW / 2 + cardW / 2;
+        const cardY = H / 2 - 10;
+
+        // Detail panel (shown when a gem is tapped)
+        const detailPanelW = 340, detailPanelH = 220;
+        const detailPanelX = W / 2, detailPanelY = H / 2 - 10;
+        const detailPanel = this.add.rectangle(detailPanelX, detailPanelY, detailPanelW, detailPanelH, 0x12122e, 1)
+            .setStrokeStyle(2, 0x8899cc).setDepth(BASE_D + 10).setVisible(false);
+        allObjs.push(detailPanel);
+
+        const detailImage = this.add.image(detailPanelX - detailPanelW / 2 + 52, detailPanelY - 44, 'skill_cleave')
+            .setDisplaySize(72, 72).setDepth(BASE_D + 11).setVisible(false);
+        allObjs.push(detailImage);
+
+        const detailName = this.add.text(detailPanelX + 10, detailPanelY - 78, '', {
+            fontSize: '18px', color: '#ffe066', fontStyle: 'bold',
+            stroke: '#000000', strokeThickness: 3
+        }).setOrigin(0, 0.5).setDepth(BASE_D + 11).setVisible(false);
+        allObjs.push(detailName);
+
+        const detailTile = this.add.text(detailPanelX + 10, detailPanelY - 52, '', {
+            fontSize: '13px', color: '#ccddff'
+        }).setOrigin(0, 0.5).setDepth(BASE_D + 11).setVisible(false);
+        allObjs.push(detailTile);
+
+        const detailDesc = this.add.text(detailPanelX, detailPanelY + 10, '', {
+            fontSize: '14px', color: '#e0e0ff',
+            wordWrap: { width: detailPanelW - 24, useAdvancedWrap: true },
+            align: 'center', lineSpacing: 4
+        }).setOrigin(0.5, 0).setDepth(BASE_D + 11).setVisible(false);
+        allObjs.push(detailDesc);
+
+        let confirmBg = null, confirmTxt = null, backBg = null, backTxt = null;
+        let selectedId = null;
+
+        const hideDetail = () => {
+            detailPanel.setVisible(false);
+            detailImage.setVisible(false);
+            detailName.setVisible(false);
+            detailTile.setVisible(false);
+            detailDesc.setVisible(false);
+            if (confirmBg) { confirmBg.destroy(); confirmBg = null; }
+            if (confirmTxt) { confirmTxt.destroy(); confirmTxt = null; }
+            if (backBg) { backBg.destroy(); backBg = null; }
+            if (backTxt) { backTxt.destroy(); backTxt = null; }
+            selectedId = null;
+            // Show cards again
+            cardObjs.forEach(c => c.forEach(o => o.setVisible(true)));
+            title.setVisible(true);
+            subtitle.setVisible(true);
+        };
+
+        const showDetail = (gem) => {
+            selectedId = gem.id;
+            // Hide cards + top text
+            cardObjs.forEach(c => c.forEach(o => o.setVisible(false)));
+            title.setVisible(false);
+            subtitle.setVisible(false);
+
+            detailImage.setTexture(gem.imageKey).setVisible(true);
+            detailName.setText(gem.name).setColor(gem.color).setVisible(true);
+            detailTile.setText(`${gem.tileIcon}  Charges from: ${gem.tileLabel} matches`).setVisible(true);
+            detailDesc.setText(gem.shortDesc).setVisible(true);
+            detailPanel.setVisible(true);
+
+            const btnY = detailPanelY + detailPanelH / 2 + 26;
+            confirmBg = this.add.rectangle(W / 2 + 76, btnY, 130, 36, 0x225522, 1)
+                .setStrokeStyle(2, 0x44cc44).setInteractive({ useHandCursor: true }).setDepth(BASE_D + 12);
+            confirmTxt = this.add.text(W / 2 + 76, btnY, '✔ Choose this', {
+                fontSize: '14px', color: '#aaffaa', fontStyle: 'bold'
+            }).setOrigin(0.5).setDepth(BASE_D + 13);
+            allObjs.push(confirmBg, confirmTxt);
+
+            backBg = this.add.rectangle(W / 2 - 86, btnY, 110, 36, 0x333344, 1)
+                .setStrokeStyle(2, 0x666688).setInteractive({ useHandCursor: true }).setDepth(BASE_D + 12);
+            backTxt = this.add.text(W / 2 - 86, btnY, '← Back', {
+                fontSize: '14px', color: '#aaaacc', fontStyle: 'bold'
+            }).setOrigin(0.5).setDepth(BASE_D + 13);
+            allObjs.push(backBg, backTxt);
+
+            confirmBg.on('pointerover', () => confirmBg.setFillStyle(0x336633));
+            confirmBg.on('pointerout',  () => confirmBg.setFillStyle(0x225522));
+            confirmBg.on('pointerup',   () => finishChoice(selectedId));
+
+            backBg.on('pointerover', () => backBg.setFillStyle(0x444455));
+            backBg.on('pointerout',  () => backBg.setFillStyle(0x333344));
+            backBg.on('pointerup',   () => hideDetail());
+        };
+
+        // Build cards
+        const cardObjs = [];
+        GEMS.forEach((gem, i) => {
+            const cx = startX + i * (cardW + spacing);
+            const objects = [];
+
+            const cardBg = this.add.rectangle(cx, cardY, cardW, cardH, 0x1e2040, 1)
+                .setStrokeStyle(2, 0x4455aa).setInteractive({ useHandCursor: true }).setDepth(BASE_D + 1);
+            objects.push(cardBg);
+
+            const gemImg = this.add.image(cx, cardY - 28, gem.imageKey)
+                .setDisplaySize(60, 60).setDepth(BASE_D + 2);
+            objects.push(gemImg);
+
+            const gemName = this.add.text(cx, cardY + 30, gem.name, {
+                fontSize: '12px', color: gem.color, fontStyle: 'bold',
+                stroke: '#000000', strokeThickness: 2,
+                wordWrap: { width: cardW - 8 }, align: 'center'
+            }).setOrigin(0.5, 0).setDepth(BASE_D + 2);
+            objects.push(gemName);
+
+            const tileTag = this.add.text(cx, cardY + 55, `${gem.tileIcon} ${gem.tileLabel}`, {
+                fontSize: '11px', color: '#aaaacc'
+            }).setOrigin(0.5, 0).setDepth(BASE_D + 2);
+            objects.push(tileTag);
+
+            cardBg.on('pointerover', () => { cardBg.setFillStyle(0x2a3060); cardBg.setStrokeStyle(2, 0x7799ff); });
+            cardBg.on('pointerout',  () => { cardBg.setFillStyle(0x1e2040); cardBg.setStrokeStyle(2, 0x4455aa); });
+            cardBg.on('pointerup',   () => showDetail(gem));
+
+            cardObjs.push(objects);
+            allObjs.push(...objects);
+        });
+
+        const finishChoice = (skillId) => {
+            setChosenStarterSkill(skillId);
+            setSkillGemsUnlocked(true);
+            allObjs.forEach(o => { try { o.destroy(); } catch(e) {} });
+
+            const chosenGem = GEMS.find(g => g.id === skillId);
+            const banner = this.add.text(W / 2, H / 2, `✨ ${chosenGem ? chosenGem.name : 'Skill'} Chosen! ✨`, {
+                fontSize: '22px', color: '#aaddff', fontStyle: 'bold',
+                stroke: '#000000', strokeThickness: 4
+            }).setOrigin(0.5).setDepth(300).setAlpha(0);
+            this.tweens.add({
+                targets: banner, alpha: 1, y: H / 2 - 28, duration: 400, ease: 'Back.easeOut',
+                onComplete: () => {
+                    this.time.delayedCall(1400, () => {
+                        this.tweens.add({ targets: banner, alpha: 0, duration: 300, onComplete: () => banner.destroy() });
+                    });
+                }
+            });
+            this.time.delayedCall(2200, () => this.scene.restart());
+        };
     }
 }
 
