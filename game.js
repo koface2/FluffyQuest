@@ -1029,6 +1029,30 @@ function setChosenStarterSkill(skillId) {
     localStorage.setItem('fq_starter_skill', skillId);
 }
 
+// ---------------------------------------------------------------------------
+// Save-slot helpers — up to 3 save files persisted in localStorage
+// ---------------------------------------------------------------------------
+const MAX_SAVE_SLOTS = 3;
+const SAVE_KEY_PREFIX = 'fq_save_';
+
+function getSaveSlot(slotIndex) {
+    try {
+        const raw = localStorage.getItem(SAVE_KEY_PREFIX + slotIndex);
+        return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+}
+
+function writeSaveSlot(slotIndex, data) {
+    try { localStorage.setItem(SAVE_KEY_PREFIX + slotIndex, JSON.stringify(data)); } catch (e) {}
+}
+
+function deleteSaveSlot(slotIndex) {
+    try { localStorage.removeItem(SAVE_KEY_PREFIX + slotIndex); } catch (e) {}
+}
+
+// Active save slot index for the current session — set by SaveSelectScene
+let activeSaveSlot = null;
+
 class Match3Scene extends Phaser.Scene {
     // Track when the store was last refreshed
     // (initialize in constructor)
@@ -1219,6 +1243,48 @@ class Match3Scene extends Phaser.Scene {
         this.dragStart = null;
         this.awaitingRewardChoice = false;
         // NOTE: tutorial seen flags persist permanently in localStorage — do NOT reset here
+
+        // If a save slot is active (set by SaveSelectScene), overlay saved progress on top of defaults.
+        // Dev mode bypasses the save system entirely.
+        this.saveSlot = this.devMode ? null : activeSaveSlot;
+        if (!this.devMode && this.saveSlot !== null) {
+            const sd = getSaveSlot(this.saveSlot);
+            if (sd) {
+                this.battleNumber           = sd.battleNumber           || 1;
+                this.player                 = sd.player                 || this.player;
+                this.inventory              = sd.inventory              || this.inventory;
+                this.equippedItems          = sd.equippedItems          || {};
+                this.allocatedTalents       = new Set(sd.allocatedTalents || []);
+                this.playerSkills           = sd.playerSkills           || this.playerSkills;
+                this.skillsInventoryGems    = sd.skillsInventoryGems    || this.skillsInventoryGems;
+                this.itemIdCounter          = sd.itemIdCounter          || 0;
+                this.lastStoreRefreshBattle = sd.lastStoreRefreshBattle || 1;
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Persist current game state to the active save slot
+    // -------------------------------------------------------------------------
+    autoSave() {
+        if (this.saveSlot === null || this.saveSlot === undefined) return;
+        const saveData = {
+            version: 1,
+            battleNumber:           this.battleNumber,
+            player:                 this.player,
+            inventory:              this.inventory,
+            equippedItems:          this.equippedItems,
+            allocatedTalents:       Array.from(this.allocatedTalents || []),
+            playerSkills:           this.playerSkills,
+            skillsInventoryGems:    this.skillsInventoryGems,
+            itemIdCounter:          this.itemIdCounter,
+            lastStoreRefreshBattle: this.lastStoreRefreshBattle,
+            rescuedBunny:           getRescuedBunny(),
+            skillGemsUnlocked:      getSkillGemsUnlocked(),
+            starterSkill:           getChosenStarterSkill(),
+            savedAt:                Date.now()
+        };
+        writeSaveSlot(this.saveSlot, saveData);
     }
 
     // -------------------------------------------------------------------------
@@ -5933,6 +5999,11 @@ class Match3Scene extends Phaser.Scene {
         // After the first boss (battle 7) is defeated, trigger the rescue cutscene
         if (this.battleNumber === 7 && !getRescuedBunny()) {
             setRescuedBunny(true);
+            this.battleNumber += 1;
+            if (this.player && typeof this.player.level === 'number') {
+                this.player.level += 1;
+            }
+            this.autoSave();
             this.scene.start('DialogueScene', { returnScene: 'TownScene' });
             return;
         }
@@ -5942,6 +6013,7 @@ class Match3Scene extends Phaser.Scene {
         if (this.player && typeof this.player.level === 'number') {
             this.player.level += 1;
         }
+        this.autoSave();
         this.skillCharge = this.createInitialSkillCharge();
         this.cloakOfFlamesActive = false;
         this.cloakOfFlamesDamage = 0;
@@ -10147,6 +10219,150 @@ class Match3Scene extends Phaser.Scene {
     }
 }
 
+// ============================================================
+// SaveSelectScene — new-game / continue screen shown after
+// the loading screen, before entering TownScene.
+// ============================================================
+class SaveSelectScene extends Phaser.Scene {
+    constructor() {
+        super('SaveSelectScene');
+    }
+
+    create() {
+        const W = this.sys.game.config.width;
+        const H = this.sys.game.config.height;
+
+        // Background — reuse the already-cached load screen image
+        const bg = this.add.image(W / 2, H / 2, 'loadscreen');
+        bg.setScale(Math.max(W / bg.width, H / bg.height));
+        // Dark overlay so the UI reads clearly
+        this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.62);
+
+        // Title
+        this.add.text(W / 2, 48, 'FluffyQuest', {
+            fontSize: '38px', color: '#ffe066', fontStyle: 'bold',
+            stroke: '#000000', strokeThickness: 7
+        }).setOrigin(0.5);
+        this.add.text(W / 2, 93, 'Select Save File', {
+            fontSize: '20px', color: '#aaddff',
+            stroke: '#000000', strokeThickness: 3
+        }).setOrigin(0.5);
+
+        // Three save slot panels
+        const slotCYs = [210, 395, 580];
+        for (let i = 0; i < MAX_SAVE_SLOTS; i++) {
+            this._buildSlot(i, W / 2, slotCYs[i], W);
+        }
+    }
+
+    _buildSlot(slotIndex, cx, cy, W) {
+        const save    = getSaveSlot(slotIndex);
+        const slotW   = 330;
+        const slotH   = 140;
+        const hasSave = save !== null;
+
+        // Card background
+        this.add.rectangle(cx, cy, slotW, slotH, hasSave ? 0x091e3a : 0x0d0d1e, 1)
+            .setStrokeStyle(2, hasSave ? 0x4488cc : 0x223355);
+
+        // Slot label (top-left of card)
+        this.add.text(cx - slotW / 2 + 14, cy - slotH / 2 + 10,
+            `Save ${slotIndex + 1}`, { fontSize: '12px', color: '#5577aa' });
+
+        if (hasSave) {
+            // --- Populated slot ---
+            const lvl = save.battleNumber || 1;
+
+            this.add.text(cx - slotW / 2 + 14, cy - 20,
+                `⚔️  Battle ${lvl}`, {
+                    fontSize: '28px', color: '#ffe066', fontStyle: 'bold',
+                    stroke: '#000000', strokeThickness: 3
+                });
+
+            if (save.savedAt) {
+                const d       = new Date(save.savedAt);
+                const dateStr = `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                this.add.text(cx - slotW / 2 + 14, cy + 18,
+                    `Last saved: ${dateStr}`, { fontSize: '11px', color: '#5577aa' });
+            }
+
+            // Continue button (right side)
+            const contW = 114, contH = 36;
+            const contX = cx + slotW / 2 - contW / 2 - 12;
+            const contY = cy + slotH / 2 - contH / 2 - 12;
+            const contBtn = this.add.rectangle(contX, contY, contW, contH, 0x1a4d1a)
+                .setStrokeStyle(2, 0x55ee55)
+                .setInteractive({ useHandCursor: true });
+            this.add.text(contX, contY, 'Continue', {
+                fontSize: '16px', color: '#ffffff', fontStyle: 'bold',
+                stroke: '#000000', strokeThickness: 2
+            }).setOrigin(0.5);
+            contBtn.on('pointerover', () => contBtn.setFillStyle(0x2a6e2a));
+            contBtn.on('pointerout',  () => contBtn.setFillStyle(0x1a4d1a));
+            contBtn.on('pointerup',   () => this._loadSave(slotIndex, save));
+
+            // Delete button (bottom-left of card)
+            const delW = 84, delH = 30;
+            const delX = cx - slotW / 2 + delW / 2 + 12;
+            const delY = cy + slotH / 2 - delH / 2 - 12;
+            const delBtn = this.add.rectangle(delX, delY, delW, delH, 0x2a0e0e)
+                .setStrokeStyle(1.5, 0xcc3333)
+                .setInteractive({ useHandCursor: true });
+            this.add.text(delX, delY, '🗑 Delete', { fontSize: '11px', color: '#ff7777' })
+                .setOrigin(0.5);
+            delBtn.on('pointerover', () => delBtn.setFillStyle(0x4a1a1a));
+            delBtn.on('pointerout',  () => delBtn.setFillStyle(0x2a0e0e));
+            delBtn.on('pointerup', () => {
+                deleteSaveSlot(slotIndex);
+                this.scene.restart();
+            });
+
+        } else {
+            // --- Empty slot ---
+            this.add.text(cx, cy - 14, 'Empty', {
+                fontSize: '22px', color: '#2d4a68', fontStyle: 'italic'
+            }).setOrigin(0.5);
+
+            const btnW = 148, btnH = 36;
+            const btn = this.add.rectangle(cx, cy + slotH / 2 - btnH / 2 - 12, btnW, btnH, 0x1e1242)
+                .setStrokeStyle(2, 0x9966ff)
+                .setInteractive({ useHandCursor: true });
+            this.add.text(cx, cy + slotH / 2 - btnH / 2 - 12, '✨  New Game', {
+                fontSize: '16px', color: '#ccaaff', fontStyle: 'bold',
+                stroke: '#000000', strokeThickness: 2
+            }).setOrigin(0.5);
+            btn.on('pointerover', () => btn.setFillStyle(0x342265));
+            btn.on('pointerout',  () => btn.setFillStyle(0x1e1242));
+            btn.on('pointerup',   () => this._newGame(slotIndex));
+        }
+    }
+
+    // Load an existing save: restore story flags so TownScene renders correctly,
+    // then hand off to TownScene. Match3Scene.init will read the slot data.
+    _loadSave(slotIndex, save) {
+        // Unconditionally restore all story flags from the save
+        setRescuedBunny(!!save.rescuedBunny);
+        setSkillGemsUnlocked(!!save.skillGemsUnlocked);
+        if (save.starterSkill) {
+            setChosenStarterSkill(save.starterSkill);
+        } else {
+            try { localStorage.removeItem('fq_starter_skill'); } catch (e) {}
+        }
+        activeSaveSlot = slotIndex;
+        this.scene.start('TownScene');
+    }
+
+    // Start a brand-new game in the chosen slot: wipe story flags and any old save.
+    _newGame(slotIndex) {
+        setRescuedBunny(false);
+        setSkillGemsUnlocked(false);
+        try { localStorage.removeItem('fq_starter_skill'); } catch (e) {}
+        deleteSaveSlot(slotIndex);
+        activeSaveSlot = slotIndex;
+        this.scene.start('TownScene');
+    }
+}
+
 class BootScene extends Phaser.Scene {
     constructor() {
         super('BootScene');
@@ -10291,7 +10507,7 @@ class LoadScreen extends Phaser.Scene {
         });
 
         this.input.once('pointerup', () => {
-            this.scene.start('TownScene');
+            this.scene.start('SaveSelectScene');
         });
     }
 }
@@ -11038,7 +11254,7 @@ const config = {
     input: {
         activePointers: 2
     },
-    scene: [BootScene, LoadScreen, TownScene, Match3Scene, DialogueScene]
+    scene: [BootScene, LoadScreen, SaveSelectScene, TownScene, Match3Scene, DialogueScene]
 };
 
 const game = new Phaser.Game(config);
