@@ -1261,6 +1261,20 @@ class Match3Scene extends Phaser.Scene {
         this.isSwapping = false;
         this.dragStart = null;
         this.awaitingRewardChoice = false;
+        // Clear Phaser object references that become stale after the scene shuts down.
+        // createSkillsScreen() recreates them fresh in create() so these null-checks
+        // prevent old destroyed objects from being mistaken for live ones.
+        this.skillsScreenGroup = null;
+        this.skillsActiveSlotUI = [];
+        this.skillsGemModal = null;
+        this.skillsGemModalUnequipBtn = null;
+        this.gemInventoryPopup = null;
+        this.gemInventoryGridCells = null;
+        this.skillBarContainer = null;
+        this.skillSlotUI = [];
+        this.skillInfoPopup = null;
+        this.selectedGemLabel = null;
+        this.tutorialPopupGroup = null;
         // NOTE: tutorial seen flags persist permanently in localStorage — do NOT reset here
 
         // If a save slot is active (set by SaveSelectScene), overlay saved progress on top of defaults.
@@ -7518,11 +7532,16 @@ class Match3Scene extends Phaser.Scene {
             this.skillsGemModalEquipBtn
         ]).setVisible(false);
 
-        // Patch closeSkillGemPopup to also hide unequip button
-        const origCloseSkillGemPopup = this.closeSkillGemPopup.bind(this);
+        // Override closeSkillGemPopup (as an instance property so it replaces, not stacks,
+        // if createSkillsScreen is called again on a scene restart).
         this.closeSkillGemPopup = () => {
-            if (this.skillsGemModalUnequipBtn) this.skillsGemModalUnequipBtn.setVisible(false);
-            origCloseSkillGemPopup();
+            this.selectedGemInventoryIndex = -1;
+            if (this.skillsGemModalUnequipBtn && this.skillsGemModalUnequipBtn.active) {
+                this.skillsGemModalUnequipBtn.setVisible(false);
+            }
+            if (this.skillsGemModal && this.skillsGemModal.active) {
+                this.skillsGemModal.setVisible(false);
+            }
         };
 
         this.skillsScreenGroup.add(this.skillsGemModal);
@@ -8959,8 +8978,17 @@ class Match3Scene extends Phaser.Scene {
             this.grid[y] = [];
             for (let x = 0; x < GRID_WIDTH; x++) {
                 let type;
+                let tries = 0;
                 do {
                     type = this.getRandomTileType();
+                    tries++;
+                    // Safety: if tile-chance bonuses make only one type possible and it keeps
+                    // creating 3-in-a-row, fall back to a random type from the full 0–4 range
+                    // after 40 attempts to ensure the grid always initialises.
+                    if (tries >= 40) {
+                        type = Phaser.Math.Between(0, 4);
+                        break;
+                    }
                 } while (!this.isValidPlacement(x, y, type));
                 this.grid[y][x] = type;
             }
@@ -10612,19 +10640,25 @@ class TownScene extends Phaser.Scene {
         // Guinea pig hero — puppet-style rig (3/4 view, right side = foreground/near)
         //
         // Two canvas sizes in the atlas:
-        //   Large (2816×1536): torso, shoulders, arms, hands, feet — placed at (0,0) in container
-        //   Small (2048×1117): head, upper-legs, shins — these are drawn at a different scale
-        //     AND origin within the same world.  Solved from pivot pairs:
-        //       neck:  torso pivot (1108,640) on 2816 canvas ↔ head pivot (232,396) on 2048 canvas
-        //       ankle: rightshin content bottom y=955 on 2048 canvas ↔ rightfoot top y=1297 on 2816
-        //     Gives:  k = 657/559 ≈ 1.1753  (2048 canvas scale relative to 2816)
-        //             world offset ox=835.3, oy=174.6  (2048 origin in 2816 world-pixels)
-        //     Screen: smallScale = k * largeScale ≈ 0.1175
-        //             smallOffX/Y = (835.3 * 0.10, 174.6 * 0.10) ≈ (83.5, 17.5)
+        //   Large (2816×1536): torso, shoulders, arms, hands, feet
+        //   Small (2048×1117): head, legs, shins — different scale + origin
+        //
+        // Measured offsets (verified with Python compositing):
+        //   smallScale  = (657/559) * puppetScale ≈ 0.1175
+        //   smallOffX   = 83.5 px  (horizontal anchor aligns head centre over torso neck)
+        //   smallOffY   = -20.5 px (raised so head chin sits at torso collar, not chest)
+        //   foot_dx     = +84 px   (both feet shift right to connect under shins)
+        //   leftArm_dx  = -149 px  (left arm group shifts left to fill torso left armhole)
+        //   leftArm_dy  = +13 px   (slight downward nudge for shoulder socket alignment)
+        //   rightArm_dx = -7 px    (closes the 6-px gap between right shoulder and torso)
         const puppetScale  = 0.10;
-        const smallScale   = (657 / 559) * puppetScale;   // ≈ 0.1175
-        const smallOffX    = 835.3 * puppetScale;          // ≈ 83.5
-        const smallOffY    = 174.6 * puppetScale;          // ≈ 17.5
+        const smallScale   = (657 / 559) * puppetScale;  // ≈ 0.1175
+        const smallOffX    =  83.5;
+        const smallOffY    = -20.5;
+        const footDx       =  84;
+        const leftArmDx    = -149;
+        const leftArmDy    =  13;
+        const rightArmDx   =  -7;
 
         const puppetW = Math.round(2816 * puppetScale);
         const puppetH = Math.round(1536 * puppetScale);
@@ -10633,14 +10667,14 @@ class TownScene extends Phaser.Scene {
         const charContainer = this.add.container(puppetContainerX, puppetContainerY)
             .setDepth(10);
 
-        // Large canvas (2816×1536) — torso, shoulders, arms, hands, feet — world origin at (0,0)
-        const addL = (frameName) => {
-            const img = this.make.image({ x: 0, y: 0, key: 'guineaparts', frame: frameName, add: false })
+        // Large-canvas part (2816×1536) with optional per-part offset
+        const addL = (frameName, dx = 0, dy = 0) => {
+            const img = this.make.image({ x: dx, y: dy, key: 'guineaparts', frame: frameName, add: false })
                 .setOrigin(0, 0).setScale(puppetScale);
             charContainer.add(img);
             return img;
         };
-        // Small canvas (2048×1117) — head, upper-legs, shins — need offset + scale correction
+        // Small-canvas part (2048×1117) — always uses the shared small-canvas offset
         const addS = (frameName) => {
             const img = this.make.image({ x: smallOffX, y: smallOffY, key: 'guineaparts', frame: frameName, add: false })
                 .setOrigin(0, 0).setScale(smallScale);
@@ -10649,45 +10683,26 @@ class TownScene extends Phaser.Scene {
         };
 
         // Z-ORDER back → front (right side = near/foreground in 3/4 view):
-        // 1. Left (background) arm
-        addL('guinea_leftshoulder');
-        addL('guinea_leftarm');
-        addL('guinea_lefthand');
+        // 1. Left (background) arm — shifted left onto torso left armhole
+        addL('guinea_leftshoulder', leftArmDx, leftArmDy);
+        addL('guinea_leftarm',      leftArmDx, leftArmDy);
+        addL('guinea_lefthand',     leftArmDx, leftArmDy);
         // 2. Left (background) leg
         addS('guinea_leftleg');
         addS('guinea_leftshin');
-        addL('guinea_leftfoot');
+        addL('guinea_leftfoot', footDx, 0);
         // 3. Torso
         addL('guinea_torso');
-        // 4. Head (neck pivot aligns to torso collar)
+        // 4. Head (chin sits at torso collar)
         addS('guinea_head');
         // 5. Right (foreground) leg
         addS('guinea_rightleg');
         addS('guinea_rightshin');
-        addL('guinea_rightfoot');
-        // 6. Right (foreground) arm — topmost layer
-        addL('guinea_rightshoulder');
-        addL('guinea_rightarm');
-        addL('guinea_righthand');
-
-        // Idle wiggle — two tweens at different periods produce an organic sway
-        this.tweens.add({
-            targets: charContainer,
-            y: puppetContainerY - 7,
-            duration: 1100,
-            yoyo: true,
-            repeat: -1,
-            ease: 'Sine.easeInOut'
-        });
-        this.tweens.add({
-            targets: charContainer,
-            x: puppetContainerX + 5,
-            duration: 820,
-            yoyo: true,
-            repeat: -1,
-            ease: 'Sine.easeInOut',
-            delay: 260
-        });
+        addL('guinea_rightfoot', footDx, 0);
+        // 6. Right (foreground) arm — fills torso right armhole, topmost layer
+        addL('guinea_rightshoulder', rightArmDx, 0);
+        addL('guinea_rightarm',      rightArmDx, 0);
+        addL('guinea_righthand',     rightArmDx, 0);
 
         // Thought bubble — only shown while Clover has not yet been rescued
         if (!getRescuedBunny()) {
