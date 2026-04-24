@@ -477,7 +477,25 @@ const SKILL_ICON_MAP = {
 };
 
 // ---------------------------------------------------------------------------
-// Talent Tree — PoE-style. Three large starting nodes (STR / DEX / INT) sit
+// Skill gem shop — Clover's vendor prices, colors, and descriptions.
+// ---------------------------------------------------------------------------
+const GEM_SHOP_DATA = {
+    'cleave':          { price: 80,  color: '#ff8866', tileIcon: '⚔️',  tileLabel: 'Physical', desc: 'Cleave through ALL enemies at once for physical damage. Great for clearing packs.' },
+    'minute-missles':  { price: 120, color: '#88aaff', tileIcon: '📖',  tileLabel: 'Magic',    desc: 'Fire 4 homing missiles that each seek a random enemy. Excellent burst against groups.' },
+    'multishot':       { price: 100, color: '#88ee88', tileIcon: '🏹',  tileLabel: 'Ranged',   desc: 'Loose a rapid volley that strikes your target multiple times in quick succession.' },
+    'duck-and-roll':   { price: 90,  color: '#88ee88', tileIcon: '🏹',  tileLabel: 'Ranged',   desc: 'Roll clear of danger and fire a precise ranged shot during the evasive manoeuvre.' },
+    'energy-beam':     { price: 140, color: '#cc88ff', tileIcon: '📖',  tileLabel: 'Magic',    desc: 'Channel focused arcane energy into a searing beam. One of the highest single-target magic hits.' },
+    'reckless-attack': { price: 160, color: '#ff6644', tileIcon: '⚔️',  tileLabel: 'Physical', desc: 'Strike with reckless fury for massive physical damage. High power, but costly in charges.' },
+    'cloak-of-flames': { price: 150, color: '#ff9900', tileIcon: '⚔️',  tileLabel: 'Physical', desc: 'Wrap yourself in magical fire. Enemies that strike you take reflected flame damage.' },
+    'shock-and-awe':   { price: 130, color: '#ffee44', tileIcon: '🏹',  tileLabel: 'Ranged',   desc: 'Call down 2–4 lightning bolts that each strike a random enemy. Volatile and unpredictable.' },
+    'blizzard':        { price: 180, color: '#aaddff', tileIcon: '📖',  tileLabel: 'Magic',    desc: 'Summon a blizzard that damages ALL enemies and leaves them Chilled, slowing their attacks.' },
+    'charge':          { price: 200, color: '#ff9966', tileIcon: '🏹',  tileLabel: 'Ranged',   desc: 'Charge headlong at your foe for maximum single-target impact. The highest raw power skill.' },
+    'frostbite':       { price: 110, color: '#88ddff', tileIcon: '📖',  tileLabel: 'Magic',    desc: 'Transmute 2 board tiles into powerful Frost tiles that deal bonus magic damage when matched.' },
+    'burst-lightning': { price: 110, color: '#ffee44', tileIcon: '🏹',  tileLabel: 'Ranged',   desc: 'Scatter the board with electricity, converting 2 tiles into Zap tiles for chain reactions.' },
+    'kindling':        { price: 100, color: '#ff7700', tileIcon: '⚔️',  tileLabel: 'Physical', desc: 'Set the board ablaze, converting 2 tiles into Flame tiles that explode on match.' },
+};
+
+
 // near the centre. Players pick exactly ONE to begin, then spend talent points
 // travelling outward along connected paths.  prereqs lists the IDs that must
 // already be allocated before a node can be chosen.  isStart marks the three
@@ -2009,22 +2027,12 @@ class Match3Scene extends Phaser.Scene {
     }
 
     createSkillGemInventoryPool() {
-        const activeGems = ACTIVE_SKILL_GEMS.map(skill => ({
-            type: 'active',
-            id: skill.id
-        }));
-
-        // Ensure Blizzard is always present in the inventory
-        if (!activeGems.find(gem => gem.id === 'blizzard')) {
-            activeGems.push({ type: 'active', id: 'blizzard' });
-        }
-
-        const supportGems = SUPPORT_SKILL_GEMS.map(gem => ({
-            type: 'support',
-            id: gem.id
-        }));
-
-        return [...activeGems, ...supportGems];
+        // Before any gems are unlocked the pool is empty.
+        // After the player picks a starter gem via Clover, the pool starts
+        // with only that gem.  Additional gems are purchased from the vendor.
+        const chosen = getChosenStarterSkill();
+        if (!chosen) return [];
+        return [{ type: 'active', id: chosen }];
     }
 
     getActiveSkillById(skillId) {
@@ -5996,8 +6004,8 @@ class Match3Scene extends Phaser.Scene {
     }
 
     startNextBattle() {
-        // After the first boss (battle 7) is defeated, trigger the rescue cutscene
-        if (this.battleNumber === 7 && !getRescuedBunny()) {
+        // After the third battle, trigger the bunny rescue cutscene (first loop only)
+        if (this.battleNumber === 3 && !getRescuedBunny()) {
             setRescuedBunny(true);
             this.battleNumber += 1;
             if (this.player && typeof this.player.level === 'number') {
@@ -10357,6 +10365,7 @@ class SaveSelectScene extends Phaser.Scene {
         setRescuedBunny(false);
         setSkillGemsUnlocked(false);
         try { localStorage.removeItem('fq_starter_skill'); } catch (e) {}
+        resetTutorialsSeen();
         deleteSaveSlot(slotIndex);
         activeSaveSlot = slotIndex;
         this.scene.start('TownScene');
@@ -10481,6 +10490,7 @@ class LoadScreen extends Phaser.Scene {
         this.load.image('town', 'assets/Screens/Town.png');
         this.load.image('forest', 'assets/Screens/Forest.png');
         this.load.spritesheet('rescues', 'assets/sprites/Rescues.png', { frameWidth: 256, frameHeight: 256 });
+        this.load.atlas('guineaparts', 'assets/sprites/guineaparts.png', 'assets/sprites/guineaparts.json');
         this.load.audio('townsong', 'assets/music/townsong.mp3');
         this.load.audio('battlesong', 'assets/music/battlesong.mp3');
     }
@@ -10539,20 +10549,58 @@ class TownScene extends Phaser.Scene {
             stroke: '#000000', strokeThickness: 6
         }).setOrigin(0.5);
 
-        // Guinea pig warrior idle — standing alone in the empty town
-        if (!this.anims.exists('town_warrior_idle')) {
-            this.anims.create({
-                key: 'town_warrior_idle',
-                frames: this.anims.generateFrameNumbers('warrior', { start: 0, end: 5 }),
-                frameRate: 5,
-                repeat: -1
-            });
-        }
         const heroY = Math.round(H * 0.60);
-        const heroSprite = this.add.sprite(W / 2, heroY, 'warrior')
-            .setScale(1.1)
-            .setOrigin(0.5, 1.0);
-        heroSprite.play('town_warrior_idle');
+
+        // Guinea pig hero — puppet-style rig (3/4 view)
+        // Canvas sizes: 2816×1536 for torso/arms/feet/shoulders; 2048×1117 for head/legs/shins.
+        // All parts share origin (0,0); adjust individual offsets here to fine-tune alignment.
+        const puppetScale = 0.10;
+        const puppetW = Math.round(2816 * puppetScale);
+        const puppetH = Math.round(1536 * puppetScale);
+        const puppetContainerX = Math.round(W / 2 - puppetW / 2);
+        const puppetContainerY = Math.round(heroY - puppetH);
+        const charContainer = this.add.container(puppetContainerX, puppetContainerY)
+            .setDepth(10);
+
+        const addPuppetPart = (frameName) => {
+            const img = this.make.image({ x: 0, y: 0, key: 'guineaparts', frame: frameName, add: false })
+                .setOrigin(0, 0)
+                .setScale(puppetScale);
+            charContainer.add(img);
+            return img;
+        };
+
+        // 1. Far side (right) limbs — behind torso in 3/4 view
+        addPuppetPart('guinea_rightshoulder.png');
+        addPuppetPart('guinea_rightarm.png');
+        addPuppetPart('guinea_righthand.png');
+        addPuppetPart('guinea_rightleg (1).png');
+        addPuppetPart('guinea_rightshin.png');
+        addPuppetPart('guinea_rightfoot.png');
+
+        // 2. Torso
+        addPuppetPart('guinea_torso.png');
+
+        // 3. Head
+        addPuppetPart('guinea_head.png');
+
+        // 4. Near side (left) limbs — in front of torso in 3/4 view
+        addPuppetPart('guinea_leftshoulder.png');
+        addPuppetPart('guinea_leftarm.png');
+        addPuppetPart('guinea_lefthand.png');
+        addPuppetPart('guinea_leftleg.png');
+        addPuppetPart('guinea_leftshin.png');
+        addPuppetPart('guinea_leftfoot.png');
+
+        // Idle: gentle floating bob
+        this.tweens.add({
+            targets: charContainer,
+            y: puppetContainerY - 6,
+            duration: 1400,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
 
         // Thought bubble — only shown while Clover has not yet been rescued
         if (!getRescuedBunny()) {
@@ -10611,24 +10659,33 @@ class TownScene extends Phaser.Scene {
                     this._showGemGiftPopup(W, H);
                 });
             } else {
-                // Bunny stands in town with a friendly greeting
-                const sBubbleGfx = this.add.graphics();
-                const sBX = bunnyX - 82, sBY = heroY - 288, sBW = 164, sBH = 50;
-                sBubbleGfx.fillStyle(0xffffff, 0.9);
-                sBubbleGfx.fillRoundedRect(sBX, sBY, sBW, sBH, 14);
-                sBubbleGfx.lineStyle(2, 0x999999, 0.75);
-                sBubbleGfx.strokeRoundedRect(sBX, sBY, sBW, sBH, 14);
-                sBubbleGfx.fillStyle(0xffffff, 0.9);
-                sBubbleGfx.fillTriangle(bunnyX - 8, sBY + sBH, bunnyX + 8, sBY + sBH, bunnyX, sBY + sBH + 12);
-                sBubbleGfx.lineStyle(2, 0x999999, 0.75);
-                sBubbleGfx.beginPath();
-                sBubbleGfx.moveTo(bunnyX - 8, sBY + sBH);
-                sBubbleGfx.lineTo(bunnyX, sBY + sBH + 12);
-                sBubbleGfx.lineTo(bunnyX + 8, sBY + sBH);
-                sBubbleGfx.strokePath();
-                this.add.text(bunnyX + 1, sBY + sBH / 2, 'Good morning,\nPipsworth!', {
-                    fontSize: '13px', color: '#222222', align: 'center', lineSpacing: 2
+                // Bunny is the skill gem vendor — show a shop tag and make her tappable
+                const shopTagGfx = this.add.graphics();
+                const stX = bunnyX - 48, stY = heroY - 298, stW = 96, stH = 32;
+                shopTagGfx.fillStyle(0x1a1a2e, 0.92);
+                shopTagGfx.fillRoundedRect(stX, stY, stW, stH, 10);
+                shopTagGfx.lineStyle(2, 0xffcc44, 0.9);
+                shopTagGfx.strokeRoundedRect(stX, stY, stW, stH, 10);
+                shopTagGfx.fillStyle(0x1a1a2e, 0.92);
+                shopTagGfx.fillTriangle(bunnyX - 6, stY + stH, bunnyX + 6, stY + stH, bunnyX, stY + stH + 10);
+                shopTagGfx.lineStyle(2, 0xffcc44, 0.9);
+                shopTagGfx.beginPath();
+                shopTagGfx.moveTo(bunnyX - 6, stY + stH);
+                shopTagGfx.lineTo(bunnyX, stY + stH + 10);
+                shopTagGfx.lineTo(bunnyX + 6, stY + stH);
+                shopTagGfx.strokePath();
+                this.add.text(bunnyX, stY + stH / 2, '💎 Gem Shop', {
+                    fontSize: '13px', color: '#ffee88', fontStyle: 'bold'
                 }).setOrigin(0.5);
+
+                // Pulse the shop tag to draw attention
+                this.tweens.add({
+                    targets: shopTagGfx, alpha: 0.6, duration: 900,
+                    yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+                });
+
+                bunnySprite.setInteractive({ useHandCursor: true });
+                bunnySprite.on('pointerup', () => this._showGemVendorShop(W, H));
             }
         }
 
@@ -11022,6 +11079,351 @@ class TownScene extends Phaser.Scene {
                 }
             });
             this.time.delayedCall(2200, () => this.scene.restart());
+        };
+    }
+
+    // ── Clover's skill gem vendor shop (available once skill gems are unlocked) ──
+    _showGemVendorShop(W, H) {
+        // ── Read current save for gold + owned gem ids ──────────────────────
+        const save = activeSaveSlot !== null ? getSaveSlot(activeSaveSlot) : null;
+        let playerGold = save && save.player ? (save.player.gold || 0) : 0;
+        const ownedIds = new Set(
+            (save && save.skillsInventoryGems ? save.skillsInventoryGems : []).map(g => g.id)
+        );
+        // Also mark the starter gem as owned so it's never listed for sale
+        const starter = getChosenStarterSkill();
+        if (starter) ownedIds.add(starter);
+
+        // ── Gems available for purchase (active only, not yet owned) ────────
+        const forSale = ACTIVE_SKILL_GEMS.filter(g => !ownedIds.has(g.id));
+
+        // ── Layout constants ─────────────────────────────────────────────────
+        const BASE_D    = 300;
+        const PANEL_W   = 366;
+        const PANEL_H   = 660;
+        const PANEL_X   = W / 2;
+        const PANEL_Y   = H / 2;
+        const HEADER_H  = 80;  // title + gold row height
+        const FOOTER_H  = 54;  // close button height + gap
+        const SCROLL_H  = PANEL_H - HEADER_H - FOOTER_H;  // visible scroll region
+        const SCROLL_TOP = PANEL_Y - PANEL_H / 2 + HEADER_H;
+        const SCROLL_LEFT = PANEL_X - PANEL_W / 2 + 8;
+
+        // Card grid: 2 columns
+        const CARD_W   = 164;
+        const CARD_H   = 104;
+        const GAP_X    = 8;
+        const GAP_Y    = 10;
+        const COLS     = 2;
+        const COL_X    = [SCROLL_LEFT + CARD_W / 2, SCROLL_LEFT + CARD_W + GAP_X + CARD_W / 2];
+
+        const shopObjs = [];
+
+        // ── Overlay ──────────────────────────────────────────────────────────
+        const overlay = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.82)
+            .setDepth(BASE_D).setInteractive();
+        shopObjs.push(overlay);
+
+        // ── Panel ────────────────────────────────────────────────────────────
+        const panel = this.add.rectangle(PANEL_X, PANEL_Y, PANEL_W, PANEL_H, 0x0e0e1e, 1)
+            .setStrokeStyle(2, 0xffcc44).setDepth(BASE_D + 1);
+        shopObjs.push(panel);
+
+        // ── Title + gold display ─────────────────────────────────────────────
+        const titleY = PANEL_Y - PANEL_H / 2 + 24;
+        this.add.text(PANEL_X, titleY, '💎  Clover\'s Gem Shop', {
+            fontSize: '18px', color: '#ffee88', fontStyle: 'bold',
+            stroke: '#000000', strokeThickness: 3
+        }).setOrigin(0.5).setDepth(BASE_D + 2);
+
+        const goldY = titleY + 30;
+        const goldLabel = this.add.text(PANEL_X, goldY, `🪙 ${playerGold} gold`, {
+            fontSize: '14px', color: '#ffe066', fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(BASE_D + 2);
+
+        const divider = this.add.rectangle(PANEL_X, goldY + 14, PANEL_W - 16, 1, 0x444488)
+            .setDepth(BASE_D + 2);
+        shopObjs.push(divider, goldLabel);
+
+        // ── Scroll container + Graphics mask ────────────────────────────────
+        const scrollContainer = this.add.container(0, 0).setDepth(BASE_D + 3);
+        shopObjs.push(scrollContainer);
+
+        const maskShape = this.make.graphics({ add: false });
+        maskShape.fillRect(SCROLL_LEFT, SCROLL_TOP, PANEL_W - 16, SCROLL_H);
+        const scrollMask = maskShape.createGeometryMask();
+        scrollContainer.setMask(scrollMask);
+
+        // ── Build gem cards inside the scroll container ──────────────────────
+        let scrollOffsetY = 0;
+        const rows = Math.ceil(forSale.length / COLS);
+        const contentH = rows * (CARD_H + GAP_Y);
+        const maxScroll = Math.max(0, contentH - SCROLL_H + GAP_Y);
+
+        forSale.forEach((gem, i) => {
+            const col  = i % COLS;
+            const row  = Math.floor(i / COLS);
+            const cx   = COL_X[col];
+            const cy   = SCROLL_TOP + CARD_H / 2 + row * (CARD_H + GAP_Y);
+            const shopEntry = GEM_SHOP_DATA[gem.id] || {};
+            const price = shopEntry.price || 100;
+            const gemColor = shopEntry.color || '#aaaaff';
+            const imgKey = SKILL_ICON_MAP[gem.id] || null;
+
+            const cardBg = this.add.rectangle(cx, cy, CARD_W, CARD_H, 0x161630, 1)
+                .setStrokeStyle(1.5, 0x445588).setInteractive({ useHandCursor: true })
+                .setDepth(BASE_D + 4);
+            scrollContainer.add(cardBg);
+
+            if (imgKey) {
+                const gemImg = this.add.image(cx - CARD_W / 2 + 32, cy - 18, imgKey)
+                    .setDisplaySize(44, 44).setDepth(BASE_D + 5);
+                scrollContainer.add(gemImg);
+            } else {
+                const gemEmoji = this.add.text(cx - CARD_W / 2 + 32, cy - 18, shopEntry.tileIcon || '◆', {
+                    fontSize: '32px'
+                }).setOrigin(0.5).setDepth(BASE_D + 5);
+                scrollContainer.add(gemEmoji);
+            }
+
+            const nameText = this.add.text(cx + 8, cy - 34, gem.name, {
+                fontSize: '12px', color: gemColor, fontStyle: 'bold',
+                stroke: '#000000', strokeThickness: 2,
+                wordWrap: { width: CARD_W / 2 + 12 }
+            }).setOrigin(0, 0).setDepth(BASE_D + 5);
+            scrollContainer.add(nameText);
+
+            const tileText = this.add.text(cx + 8, cy - 14, `${shopEntry.tileIcon || ''} ${shopEntry.tileLabel || ''}`, {
+                fontSize: '11px', color: '#aaaacc'
+            }).setOrigin(0, 0).setDepth(BASE_D + 5);
+            scrollContainer.add(tileText);
+
+            const priceText = this.add.text(cx, cy + CARD_H / 2 - 18, `🪙 ${price} gold`, {
+                fontSize: '12px', color: '#ffe066', fontStyle: 'bold'
+            }).setOrigin(0.5).setDepth(BASE_D + 5);
+            scrollContainer.add(priceText);
+
+            // Hover highlight
+            cardBg.on('pointerover',  () => { cardBg.setFillStyle(0x222248); cardBg.setStrokeStyle(1.5, 0x88aaff); });
+            cardBg.on('pointerout',   () => { cardBg.setFillStyle(0x161630); cardBg.setStrokeStyle(1.5, 0x445588); });
+            cardBg.on('pointerup',    () => showGemDetail(gem, price, shopEntry, imgKey));
+        });
+
+        // ── "All owned" message if nothing to sell ───────────────────────────
+        if (forSale.length === 0) {
+            const emptyTxt = this.add.text(PANEL_X, SCROLL_TOP + SCROLL_H / 2,
+                'You own every skill gem!\nCheck back next patch. 😄',
+                { fontSize: '15px', color: '#aaaaaa', align: 'center', lineSpacing: 4 }
+            ).setOrigin(0.5).setDepth(BASE_D + 4);
+            shopObjs.push(emptyTxt);
+        }
+
+        // ── Scroll detection ─────────────────────────────────────────────────
+        let dragStartY = null;
+        let dragStartOffset = 0;
+        let isDragging = false;
+        let pointerDownTime = 0;
+        let pointerDownX = 0;
+        let pointerDownY = 0;
+
+        overlay.on('pointerdown', (ptr) => {
+            if (ptr.y >= SCROLL_TOP && ptr.y <= SCROLL_TOP + SCROLL_H) {
+                dragStartY = ptr.y;
+                dragStartOffset = scrollOffsetY;
+                isDragging = false;
+                pointerDownTime = this.time.now;
+                pointerDownX = ptr.x;
+                pointerDownY = ptr.y;
+            }
+        });
+
+        const onMove = (ptr) => {
+            if (dragStartY === null) return;
+            const dy = Math.abs(ptr.y - pointerDownY);
+            const dx = Math.abs(ptr.x - pointerDownX);
+            if (dy > 5 || dx > 5) isDragging = true;
+            if (!isDragging) return;
+            scrollOffsetY = Phaser.Math.Clamp(dragStartOffset - (ptr.y - dragStartY), 0, maxScroll);
+            scrollContainer.setY(-scrollOffsetY);
+        };
+        const onUp = () => { dragStartY = null; };
+        this.input.on('pointermove', onMove);
+        this.input.on('pointerup',   onUp);
+
+        // ── Close button ─────────────────────────────────────────────────────
+        const closeY = PANEL_Y + PANEL_H / 2 - FOOTER_H / 2;
+        const closeBg = this.add.rectangle(PANEL_X, closeY, 130, 38, 0x553322, 1)
+            .setStrokeStyle(2, 0xcc6644).setInteractive({ useHandCursor: true }).setDepth(BASE_D + 2);
+        const closeTxt = this.add.text(PANEL_X, closeY, 'Close', {
+            fontSize: '16px', color: '#ffffff', fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(BASE_D + 3);
+        shopObjs.push(closeBg, closeTxt);
+        closeBg.on('pointerover', () => closeBg.setFillStyle(0x774433));
+        closeBg.on('pointerout',  () => closeBg.setFillStyle(0x553322));
+        closeBg.on('pointerup',   () => closeShop());
+
+        // ── Gem detail popup ─────────────────────────────────────────────────
+        let detailObjs = [];
+
+        const showGemDetail = (gem, price, shopEntry, imgKey) => {
+            // Clear any existing detail popup
+            detailObjs.forEach(o => { try { o.destroy(); } catch(e){} });
+            detailObjs = [];
+
+            const D = BASE_D + 20;
+            const dpW = 340, dpH = 310;
+            const dpX = W / 2, dpY = H / 2 - 20;
+            const gemColor = shopEntry.color || '#aaaaff';
+            const canAfford = playerGold >= price;
+
+            const dpOverlay = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.55)
+                .setDepth(D).setInteractive();
+            detailObjs.push(dpOverlay);
+
+            const dp = this.add.rectangle(dpX, dpY, dpW, dpH, 0x0a0a20, 1)
+                .setStrokeStyle(2, 0x8899cc).setDepth(D + 1);
+            detailObjs.push(dp);
+
+            // Gem image or emoji
+            if (imgKey) {
+                const di = this.add.image(dpX - dpW / 2 + 44, dpY - dpH / 2 + 52, imgKey)
+                    .setDisplaySize(56, 56).setDepth(D + 2);
+                detailObjs.push(di);
+            } else {
+                const de = this.add.text(dpX - dpW / 2 + 44, dpY - dpH / 2 + 52,
+                    shopEntry.tileIcon || '◆', { fontSize: '40px' }
+                ).setOrigin(0.5).setDepth(D + 2);
+                detailObjs.push(de);
+            }
+
+            const dn = this.add.text(dpX - dpW / 2 + 80, dpY - dpH / 2 + 38, gem.name, {
+                fontSize: '18px', color: gemColor, fontStyle: 'bold',
+                stroke: '#000000', strokeThickness: 3
+            }).setOrigin(0, 0.5).setDepth(D + 2);
+            detailObjs.push(dn);
+
+            const dt = this.add.text(dpX - dpW / 2 + 80, dpY - dpH / 2 + 62,
+                `${shopEntry.tileIcon || ''} ${shopEntry.tileLabel || ''}  ·  Power: ${gem.basePower}`, {
+                fontSize: '12px', color: '#ccddff'
+            }).setOrigin(0, 0.5).setDepth(D + 2);
+            detailObjs.push(dt);
+
+            const divLine = this.add.rectangle(dpX, dpY - dpH / 2 + 82, dpW - 20, 1, 0x445588)
+                .setDepth(D + 2);
+            detailObjs.push(divLine);
+
+            const dd = this.add.text(dpX, dpY - dpH / 2 + 106, shopEntry.desc || '', {
+                fontSize: '13px', color: '#dde0ff',
+                wordWrap: { width: dpW - 32, useAdvancedWrap: true },
+                align: 'center', lineSpacing: 4
+            }).setOrigin(0.5, 0).setDepth(D + 2);
+            detailObjs.push(dd);
+
+            // Price badge
+            const priceY = dpY + dpH / 2 - 80;
+            const priceBadge = this.add.rectangle(dpX, priceY, 160, 32, canAfford ? 0x223322 : 0x2a1010, 1)
+                .setStrokeStyle(1.5, canAfford ? 0x44aa44 : 0x884444).setDepth(D + 2);
+            const priceLbl = this.add.text(dpX, priceY, `🪙 ${price} gold`, {
+                fontSize: '14px', color: canAfford ? '#aaffaa' : '#ff8888', fontStyle: 'bold'
+            }).setOrigin(0.5).setDepth(D + 3);
+            detailObjs.push(priceBadge, priceLbl);
+
+            if (!canAfford) {
+                const notEnough = this.add.text(dpX, priceY + 20, 'Not enough gold', {
+                    fontSize: '11px', color: '#ff8888'
+                }).setOrigin(0.5).setDepth(D + 3);
+                detailObjs.push(notEnough);
+            }
+
+            // Buy / Cancel buttons
+            const btnY = dpY + dpH / 2 - 30;
+            const buyBg = this.add.rectangle(dpX + 70, btnY, 120, 36,
+                canAfford ? 0x1a4d1a : 0x2a2a2a, 1
+            ).setStrokeStyle(2, canAfford ? 0x44cc44 : 0x555555)
+             .setDepth(D + 2)
+             .setInteractive({ useHandCursor: canAfford });
+            const buyTxt = this.add.text(dpX + 70, btnY, '✔ Buy', {
+                fontSize: '15px', color: canAfford ? '#aaffaa' : '#666666', fontStyle: 'bold'
+            }).setOrigin(0.5).setDepth(D + 3);
+            detailObjs.push(buyBg, buyTxt);
+
+            if (canAfford) {
+                buyBg.on('pointerover', () => buyBg.setFillStyle(0x2a6e2a));
+                buyBg.on('pointerout',  () => buyBg.setFillStyle(0x1a4d1a));
+                buyBg.on('pointerup',   () => executePurchase(gem, price));
+            }
+
+            const cancelBg = this.add.rectangle(dpX - 76, btnY, 100, 36, 0x333344, 1)
+                .setStrokeStyle(2, 0x666688).setInteractive({ useHandCursor: true }).setDepth(D + 2);
+            const cancelTxt = this.add.text(dpX - 76, btnY, '← Back', {
+                fontSize: '15px', color: '#aaaacc', fontStyle: 'bold'
+            }).setOrigin(0.5).setDepth(D + 3);
+            detailObjs.push(cancelBg, cancelTxt);
+            cancelBg.on('pointerover', () => cancelBg.setFillStyle(0x444455));
+            cancelBg.on('pointerout',  () => cancelBg.setFillStyle(0x333344));
+            cancelBg.on('pointerup',   () => {
+                detailObjs.forEach(o => { try { o.destroy(); } catch(e){} });
+                detailObjs = [];
+            });
+        };
+
+        // ── Execute a gem purchase ────────────────────────────────────────────
+        const executePurchase = (gem, price) => {
+            if (activeSaveSlot === null) return;
+            const sd = getSaveSlot(activeSaveSlot);
+            if (!sd) return;
+            if ((sd.player.gold || 0) < price) return;
+
+            sd.player.gold -= price;
+            sd.skillsInventoryGems = sd.skillsInventoryGems || [];
+            sd.skillsInventoryGems.push({ type: 'active', id: gem.id });
+            writeSaveSlot(activeSaveSlot, sd);
+
+            // Update local gold mirror
+            playerGold = sd.player.gold;
+            goldLabel.setText(`🪙 ${playerGold} gold`);
+
+            // Show purchase confirmation
+            detailObjs.forEach(o => { try { o.destroy(); } catch(e){} });
+            detailObjs = [];
+
+            const shopEntry = GEM_SHOP_DATA[gem.id] || {};
+            const banner = this.add.text(W / 2, H / 2, `✨ ${gem.name} purchased! ✨`, {
+                fontSize: '18px', color: '#aaffaa', fontStyle: 'bold',
+                stroke: '#000000', strokeThickness: 3
+            }).setOrigin(0.5).setDepth(BASE_D + 30).setAlpha(0);
+            this.tweens.add({
+                targets: banner, alpha: 1, y: H / 2 - 20, duration: 350, ease: 'Back.easeOut',
+                onComplete: () => {
+                    this.time.delayedCall(1000, () => {
+                        this.tweens.add({
+                            targets: banner, alpha: 0, duration: 250,
+                            onComplete: () => banner.destroy()
+                        });
+                    });
+                }
+            });
+
+            // Grey out the purchased gem's card in the scroll container
+            scrollContainer.each(obj => {
+                if (obj._gemId === gem.id) {
+                    obj.setAlpha(0.3);
+                    obj.disableInteractive();
+                }
+            });
+            // Rebuild shop to remove the bought card on next open
+            // (on close → reopen the card won't appear)
+            ownedIds.add(gem.id);
+        };
+
+        // ── Utility: close shop ───────────────────────────────────────────────
+        const closeShop = () => {
+            this.input.off('pointermove', onMove);
+            this.input.off('pointerup',   onUp);
+            detailObjs.forEach(o => { try { o.destroy(); } catch(e){} });
+            shopObjs.forEach(o => { try { o.destroy(); } catch(e){} });
+            scrollContainer.destroy(true);
+            maskShape.destroy();
         };
     }
 }
