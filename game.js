@@ -8247,13 +8247,11 @@ class Match3Scene extends Phaser.Scene {
             if (onDismiss) onDismiss();
             return;
         }
-        markTutorialSeen(id);
+        // If a tutorial is already visible, skip the incoming one — the player must dismiss it first.
+        // (Prevents other tutorials from racing in and replacing a popup before the user reads it.)
+        if (this.tutorialPopupGroup) return;
 
-        // Dismiss any popup already on screen
-        if (this.tutorialPopupGroup) {
-            this.tutorialPopupGroup.destroy(true);
-            this.tutorialPopupGroup = null;
-        }
+        markTutorialSeen(id);
 
         const W  = this.sys.game.config.width;
         const H  = this.sys.game.config.height;
@@ -10611,10 +10609,23 @@ class TownScene extends Phaser.Scene {
 
         const heroY = Math.round(H * 0.60);
 
-        // Guinea pig hero — puppet-style rig (3/4 view)
-        // Canvas sizes: 2816×1536 for torso/arms/feet/shoulders; 2048×1117 for head/legs/shins.
-        // All parts share origin (0,0); adjust individual offsets here to fine-tune alignment.
-        const puppetScale = 0.10;
+        // Guinea pig hero — puppet-style rig (3/4 view, right side = foreground/near)
+        //
+        // Two canvas sizes in the atlas:
+        //   Large (2816×1536): torso, shoulders, arms, hands, feet — placed at (0,0) in container
+        //   Small (2048×1117): head, upper-legs, shins — these are drawn at a different scale
+        //     AND origin within the same world.  Solved from pivot pairs:
+        //       neck:  torso pivot (1108,640) on 2816 canvas ↔ head pivot (232,396) on 2048 canvas
+        //       ankle: rightshin content bottom y=955 on 2048 canvas ↔ rightfoot top y=1297 on 2816
+        //     Gives:  k = 657/559 ≈ 1.1753  (2048 canvas scale relative to 2816)
+        //             world offset ox=835.3, oy=174.6  (2048 origin in 2816 world-pixels)
+        //     Screen: smallScale = k * largeScale ≈ 0.1175
+        //             smallOffX/Y = (835.3 * 0.10, 174.6 * 0.10) ≈ (83.5, 17.5)
+        const puppetScale  = 0.10;
+        const smallScale   = (657 / 559) * puppetScale;   // ≈ 0.1175
+        const smallOffX    = 835.3 * puppetScale;          // ≈ 83.5
+        const smallOffY    = 174.6 * puppetScale;          // ≈ 17.5
+
         const puppetW = Math.round(2816 * puppetScale);
         const puppetH = Math.round(1536 * puppetScale);
         const puppetContainerX = Math.round(W / 2 - puppetW / 2);
@@ -10622,44 +10633,60 @@ class TownScene extends Phaser.Scene {
         const charContainer = this.add.container(puppetContainerX, puppetContainerY)
             .setDepth(10);
 
-        const addPuppetPart = (frameName) => {
+        // Large canvas (2816×1536) — torso, shoulders, arms, hands, feet — world origin at (0,0)
+        const addL = (frameName) => {
             const img = this.make.image({ x: 0, y: 0, key: 'guineaparts', frame: frameName, add: false })
-                .setOrigin(0, 0)
-                .setScale(puppetScale);
+                .setOrigin(0, 0).setScale(puppetScale);
+            charContainer.add(img);
+            return img;
+        };
+        // Small canvas (2048×1117) — head, upper-legs, shins — need offset + scale correction
+        const addS = (frameName) => {
+            const img = this.make.image({ x: smallOffX, y: smallOffY, key: 'guineaparts', frame: frameName, add: false })
+                .setOrigin(0, 0).setScale(smallScale);
             charContainer.add(img);
             return img;
         };
 
-        // 1. Far side (right) limbs — behind torso in 3/4 view
-        addPuppetPart('guinea_rightshoulder.png');
-        addPuppetPart('guinea_rightarm.png');
-        addPuppetPart('guinea_righthand.png');
-        addPuppetPart('guinea_rightleg (1).png');
-        addPuppetPart('guinea_rightshin.png');
-        addPuppetPart('guinea_rightfoot.png');
+        // Z-ORDER back → front (right side = near/foreground in 3/4 view):
+        // 1. Left (background) arm
+        addL('guinea_leftshoulder');
+        addL('guinea_leftarm');
+        addL('guinea_lefthand');
+        // 2. Left (background) leg
+        addS('guinea_leftleg');
+        addS('guinea_leftshin');
+        addL('guinea_leftfoot');
+        // 3. Torso
+        addL('guinea_torso');
+        // 4. Head (neck pivot aligns to torso collar)
+        addS('guinea_head');
+        // 5. Right (foreground) leg
+        addS('guinea_rightleg');
+        addS('guinea_rightshin');
+        addL('guinea_rightfoot');
+        // 6. Right (foreground) arm — topmost layer
+        addL('guinea_rightshoulder');
+        addL('guinea_rightarm');
+        addL('guinea_righthand');
 
-        // 2. Torso
-        addPuppetPart('guinea_torso.png');
-
-        // 3. Head
-        addPuppetPart('guinea_head.png');
-
-        // 4. Near side (left) limbs — in front of torso in 3/4 view
-        addPuppetPart('guinea_leftshoulder.png');
-        addPuppetPart('guinea_leftarm.png');
-        addPuppetPart('guinea_lefthand.png');
-        addPuppetPart('guinea_leftleg.png');
-        addPuppetPart('guinea_leftshin.png');
-        addPuppetPart('guinea_leftfoot.png');
-
-        // Idle: gentle floating bob
+        // Idle wiggle — two tweens at different periods produce an organic sway
         this.tweens.add({
             targets: charContainer,
-            y: puppetContainerY - 6,
-            duration: 1400,
+            y: puppetContainerY - 7,
+            duration: 1100,
             yoyo: true,
             repeat: -1,
             ease: 'Sine.easeInOut'
+        });
+        this.tweens.add({
+            targets: charContainer,
+            x: puppetContainerX + 5,
+            duration: 820,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut',
+            delay: 260
         });
 
         // Thought bubble — only shown while Clover has not yet been rescued
@@ -11370,10 +11397,10 @@ class TownScene extends Phaser.Scene {
         // ── Close button ─────────────────────────────────────────────────────
         const closeY = PANEL_Y + PANEL_H / 2 - FOOTER_H / 2;
         const closeBg = this.add.rectangle(PANEL_X, closeY, 130, 38, 0x553322, 1)
-            .setStrokeStyle(2, 0xcc6644).setInteractive({ useHandCursor: true }).setDepth(BASE_D + 2);
+            .setStrokeStyle(2, 0xcc6644).setInteractive({ useHandCursor: true }).setDepth(BASE_D + 6);
         const closeTxt = this.add.text(PANEL_X, closeY, 'Close', {
             fontSize: '16px', color: '#ffffff', fontStyle: 'bold'
-        }).setOrigin(0.5).setDepth(BASE_D + 3);
+        }).setOrigin(0.5).setDepth(BASE_D + 7);
         shopObjs.push(closeBg, closeTxt);
         closeBg.on('pointerover', () => closeBg.setFillStyle(0x774433));
         closeBg.on('pointerout',  () => closeBg.setFillStyle(0x553322));
