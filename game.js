@@ -1254,6 +1254,7 @@ class Match3Scene extends Phaser.Scene {
         this.skillCharge = this.createInitialSkillCharge();
         this.cloakOfFlamesActive = false;
         this.cloakOfFlamesDamage = 0;
+        this.purchasedGemIds    = [];
         this.skillsInventoryGems = this.createSkillGemInventoryPool();
         this.generateStoreInventory();
         // Reset state flags that persist across scene.restart()
@@ -1274,10 +1275,27 @@ class Match3Scene extends Phaser.Scene {
                 this.equippedItems          = sd.equippedItems          || {};
                 this.allocatedTalents       = new Set(sd.allocatedTalents || []);
                 this.playerSkills           = sd.playerSkills           || this.playerSkills;
-                this.skillsInventoryGems    = sd.skillsInventoryGems    || this.skillsInventoryGems;
+                this.purchasedGemIds        = sd.purchasedGemIds        || [];
                 this.itemIdCounter          = sd.itemIdCounter          || 0;
                 this.lastStoreRefreshBattle = sd.lastStoreRefreshBattle || 1;
+                // Rebuild active gem list from authoritative sources.
+                // Legacy saves stored the entire gem pool; purchasedGemIds is the truth.
+                const _starter = getChosenStarterSkill();
+                const _actives = [];
+                if (_starter) _actives.push({ type: 'active', id: _starter });
+                this.purchasedGemIds.forEach(gid => {
+                    if (!_actives.find(g => g.id === gid)) _actives.push({ type: 'active', id: gid });
+                });
+                const _savedSupports = (sd.skillsInventoryGems || []).filter(g => g.type === 'support');
+                this.skillsInventoryGems = [..._actives, ..._savedSupports];
             }
+        }
+
+        // Each forest run starts fresh — reset level and battle progress.
+        // Gold is preserved across runs (it stays in this.player.gold).
+        if (!this.devMode) {
+            this.battleNumber = 1;
+            if (this.player) this.player.level = 1;
         }
     }
 
@@ -1294,6 +1312,7 @@ class Match3Scene extends Phaser.Scene {
             equippedItems:          this.equippedItems,
             allocatedTalents:       Array.from(this.allocatedTalents || []),
             playerSkills:           this.playerSkills,
+            purchasedGemIds:        this.purchasedGemIds        || [],
             skillsInventoryGems:    this.skillsInventoryGems,
             itemIdCounter:          this.itemIdCounter,
             lastStoreRefreshBattle: this.lastStoreRefreshBattle,
@@ -1998,11 +2017,24 @@ class Match3Scene extends Phaser.Scene {
             this.createSkillBar();
         }
 
+        this.createTopGoldBar();
         this.showGameScreen();
 
         // Global pointer-up: always dismiss tile info popup when finger lifts anywhere
         this.input.on('pointerup', () => this.hideTileInfoPopup());
     }
+
+    createTopGoldBar() {
+        const W = this.sys.game.config.width;
+        const BAR_H = 22;
+
+        const barBg = this.add.rectangle(W / 2, BAR_H / 2, W, BAR_H, 0x0a0a18, 0.88)
+            .setDepth(90);
+        this.topGoldBarText = this.add.text(W / 2, BAR_H / 2, `🪙  ${this.player.gold}`, {
+            fontSize: '13px', color: '#ffe066', fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(91);
+    }
+
 
     createInitialSkillLoadout() {
         // If the player has chosen a starter skill via Clover's gem gift, use only that one.
@@ -8185,25 +8217,28 @@ class Match3Scene extends Phaser.Scene {
     // -------------------------------------------------------------------------
 
     initTutorials() {
-        // Show the first tutorial after a short delay to let the battle start
+        // Show the first tutorial after a short delay to let the battle start.
+        // If skill gems are unlocked, chain the second tutorial as an onDismiss
+        // callback so the player must read the first before seeing the second.
+        const afterSwap = getSkillGemsUnlocked()
+            ? () => {
+                this.time.delayedCall(400, () => {
+                    this.showTutorialPopup(
+                        'tutorial_skillcharge',
+                        '💎 Skill Gems charge up as you match tiles!\nYour gem charges from matching its tile type — when the bar fills, tap the gem button to unleash the skill.',
+                        null
+                    );
+                });
+            }
+            : null;
+
         this.time.delayedCall(900, () => {
             this.showTutorialPopup(
                 'tutorial_swap',
                 'Drag a tile onto its neighbor to swap them!\nMatch 3 or more of the same tile type in a row or column to activate their effects.',
-                null
+                afterSwap
             );
         });
-
-        // On the first run after skill gems are unlocked, explain how skill charging works
-        if (getSkillGemsUnlocked()) {
-            this.time.delayedCall(1800, () => {
-                this.showTutorialPopup(
-                    'tutorial_skillcharge',
-                    '💎 Skill Gems charge up as you match tiles!\nYour gem charges from matching its tile type — when the bar fills, tap the gem button to unleash the skill.',
-                    null
-                );
-            });
-        }
     }
 
     showTutorialPopup(id, message, onDismiss) {
@@ -8229,10 +8264,20 @@ class Match3Scene extends Phaser.Scene {
 
         this.tutorialPopupGroup = this.add.container(0, 0).setDepth(9200).setAlpha(0);
 
-        const overlay  = this.add.rectangle(pX, pY, panelW + 18, panelH + 18, 0x000000, 0.55).setInteractive();
+        // Guard flag so both overlay and button can't both fire onDismiss
+        let dismissed = false;
+        const dismiss = () => {
+            if (dismissed) return;
+            dismissed = true;
+            this.dismissTutorialPopup();
+            if (onDismiss) onDismiss();
+        };
+
+        const overlay  = this.add.rectangle(pX, pY, panelW + 18, panelH + 18, 0x000000, 0.55)
+            .setInteractive({ useHandCursor: true });
         const panel    = this.add.rectangle(pX, pY, panelW, panelH, 0x12122a, 0.97).setStrokeStyle(2, 0x8877dd);
-        const header   = this.add.text(pX, pY - panelH / 2 + 17, '📖  Tutorial', {
-            fontSize: '13px', color: '#bbaaff', fontStyle: 'bold'
+        const header   = this.add.text(pX, pY - panelH / 2 + 17, '📖  Tutorial  — tap anywhere to dismiss', {
+            fontSize: '12px', color: '#bbaaff', fontStyle: 'bold'
         }).setOrigin(0.5);
         const msgText  = this.add.text(pX, pY - 10, message, {
             fontSize: '14px', color: '#e8e8ff',
@@ -8247,7 +8292,9 @@ class Match3Scene extends Phaser.Scene {
 
         gotItBg.on('pointerover', () => gotItBg.setFillStyle(0x4455aa));
         gotItBg.on('pointerout',  () => gotItBg.setFillStyle(0x334488));
-        gotItBg.on('pointerup',   () => { this.dismissTutorialPopup(); if (onDismiss) onDismiss(); });
+        gotItBg.on('pointerup',   dismiss);
+        overlay.on('pointerup',   dismiss);
+        panel.on('pointerup',     dismiss);
 
         this.tutorialPopupGroup.add([overlay, panel, header, msgText, gotItBg, gotItTxt]);
 
@@ -8736,6 +8783,10 @@ class Match3Scene extends Phaser.Scene {
     updateGoldDisplay() {
         if (this.goldDisplayText) {
             this.goldDisplayText.setText(`${this.player.gold}`);
+        }
+        // Top bar (always visible, non-dev mode too)
+        if (this.topGoldBarText) {
+            this.topGoldBarText.setText(`🪙  ${this.player.gold}`);
         }
     }
 
@@ -10543,6 +10594,15 @@ class TownScene extends Phaser.Scene {
         const scaleY = H / bg.height;
         bg.setScale(Math.max(scaleX, scaleY));
 
+        // ── Top gold bar ────────────────────────────────────────────────────
+        const save = activeSaveSlot !== null ? getSaveSlot(activeSaveSlot) : null;
+        const townGold = save && save.player ? (save.player.gold || 0) : 0;
+        const BAR_H = 22;
+        this.add.rectangle(W / 2, BAR_H / 2, W, BAR_H, 0x0a0a18, 0.88).setDepth(90);
+        this.add.text(W / 2, BAR_H / 2, `🪙  ${townGold}`, {
+            fontSize: '13px', color: '#ffe066', fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(91);
+
         // Title
         this.add.text(W / 2, 70, 'Town', {
             fontSize: '48px', color: '#ffe066', fontStyle: 'bold',
@@ -11063,6 +11123,19 @@ class TownScene extends Phaser.Scene {
         const finishChoice = (skillId) => {
             setChosenStarterSkill(skillId);
             setSkillGemsUnlocked(true);
+            // Immediately persist to save slot — TownScene has no autoSave,
+            // so without this the choice is lost if the player closes before
+            // entering the forest.
+            if (activeSaveSlot !== null) {
+                const _sd = getSaveSlot(activeSaveSlot);
+                if (_sd) {
+                    _sd.skillGemsUnlocked = true;
+                    _sd.starterSkill = skillId;
+                    _sd.purchasedGemIds = _sd.purchasedGemIds || [];
+                    _sd.skillsInventoryGems = [{ type: 'active', id: skillId }];
+                    writeSaveSlot(activeSaveSlot, _sd);
+                }
+            }
             allObjs.forEach(o => { try { o.destroy(); } catch(e) {} });
 
             const chosenGem = GEMS.find(g => g.id === skillId);
@@ -11087,10 +11160,10 @@ class TownScene extends Phaser.Scene {
         // ── Read current save for gold + owned gem ids ──────────────────────
         const save = activeSaveSlot !== null ? getSaveSlot(activeSaveSlot) : null;
         let playerGold = save && save.player ? (save.player.gold || 0) : 0;
-        const ownedIds = new Set(
-            (save && save.skillsInventoryGems ? save.skillsInventoryGems : []).map(g => g.id)
-        );
-        // Also mark the starter gem as owned so it's never listed for sale
+        // Use purchasedGemIds as the authoritative ownership list.
+        // Legacy saves that stored the full gem pool in skillsInventoryGems
+        // are intentionally ignored here.
+        const ownedIds = new Set(save && save.purchasedGemIds ? save.purchasedGemIds : []);
         const starter = getChosenStarterSkill();
         if (starter) ownedIds.add(starter);
 
@@ -11111,7 +11184,7 @@ class TownScene extends Phaser.Scene {
 
         // Card grid: 2 columns
         const CARD_W   = 164;
-        const CARD_H   = 104;
+        const CARD_H   = 110;  // tall enough for icon + 2-line name + tile tag + price strip
         const GAP_X    = 8;
         const GAP_Y    = 10;
         const COLS     = 2;
@@ -11146,11 +11219,12 @@ class TownScene extends Phaser.Scene {
         shopObjs.push(divider, goldLabel);
 
         // ── Scroll container + Graphics mask ────────────────────────────────
+        const SCROLL_GUTTER = 14; // right-side gutter for scroll bar
         const scrollContainer = this.add.container(0, 0).setDepth(BASE_D + 3);
         shopObjs.push(scrollContainer);
 
         const maskShape = this.make.graphics({ add: false });
-        maskShape.fillRect(SCROLL_LEFT, SCROLL_TOP, PANEL_W - 16, SCROLL_H);
+        maskShape.fillRect(SCROLL_LEFT, SCROLL_TOP, PANEL_W - 16 - SCROLL_GUTTER, SCROLL_H);
         const scrollMask = maskShape.createGeometryMask();
         scrollContainer.setMask(scrollMask);
 
@@ -11170,36 +11244,58 @@ class TownScene extends Phaser.Scene {
             const gemColor = shopEntry.color || '#aaaaff';
             const imgKey = SKILL_ICON_MAP[gem.id] || null;
 
+            // ── Card layout zones ────────────────────────────────────────
+            // Left  zone (x: -82...-30): 38×38 gem icon, vertically centred in top 75% of card
+            // Right zone (x: -26...+78): gem name (2-line max, 11px) then tile tag (10px)
+            // Bottom strip (bottom 26px of card): price, separated by a thin rule
+            const PRICE_STRIP_H = 26;
+            const CONTENT_MID_Y = cy - PRICE_STRIP_H / 2; // centre of icon+text zone
+
             const cardBg = this.add.rectangle(cx, cy, CARD_W, CARD_H, 0x161630, 1)
                 .setStrokeStyle(1.5, 0x445588).setInteractive({ useHandCursor: true })
                 .setDepth(BASE_D + 4);
             scrollContainer.add(cardBg);
 
+            // Price strip divider
+            const divY = cy + CARD_H / 2 - PRICE_STRIP_H;
+            const priceDivider = this.add.rectangle(cx, divY, CARD_W - 8, 1, 0x334466, 1)
+                .setDepth(BASE_D + 4);
+            scrollContainer.add(priceDivider);
+
+            // Gem icon — left zone, vertically centred in content area
+            const iconCY = CONTENT_MID_Y - 4;
             if (imgKey) {
-                const gemImg = this.add.image(cx - CARD_W / 2 + 32, cy - 18, imgKey)
-                    .setDisplaySize(44, 44).setDepth(BASE_D + 5);
+                const gemImg = this.add.image(cx - 50, iconCY, imgKey)
+                    .setDisplaySize(38, 38).setOrigin(0.5).setDepth(BASE_D + 5);
                 scrollContainer.add(gemImg);
             } else {
-                const gemEmoji = this.add.text(cx - CARD_W / 2 + 32, cy - 18, shopEntry.tileIcon || '◆', {
-                    fontSize: '32px'
+                const gemEmoji = this.add.text(cx - 50, iconCY, shopEntry.tileIcon || '◆', {
+                    fontSize: '26px'
                 }).setOrigin(0.5).setDepth(BASE_D + 5);
                 scrollContainer.add(gemEmoji);
             }
 
-            const nameText = this.add.text(cx + 8, cy - 34, gem.name, {
-                fontSize: '12px', color: gemColor, fontStyle: 'bold',
+            // Name — right zone, top area (max 2 lines × ~14px = 28px)
+            const nameTop = cy - CARD_H / 2 + 8;
+            const nameText = this.add.text(cx - 24, nameTop, gem.name, {
+                fontSize: '11px', color: gemColor, fontStyle: 'bold',
                 stroke: '#000000', strokeThickness: 2,
-                wordWrap: { width: CARD_W / 2 + 12 }
+                wordWrap: { width: 100, useAdvancedWrap: true },
+                lineSpacing: 2
             }).setOrigin(0, 0).setDepth(BASE_D + 5);
             scrollContainer.add(nameText);
 
-            const tileText = this.add.text(cx + 8, cy - 14, `${shopEntry.tileIcon || ''} ${shopEntry.tileLabel || ''}`, {
-                fontSize: '11px', color: '#aaaacc'
+            // Tile tag — right zone, fixed below 2-line name (2 × 13px = 26px + 8px top pad + 4px gap)
+            const tileTagY = nameTop + 30;
+            const tileText = this.add.text(cx - 24, tileTagY,
+                `${shopEntry.tileIcon || ''} ${shopEntry.tileLabel || ''}`, {
+                fontSize: '10px', color: '#9999bb'
             }).setOrigin(0, 0).setDepth(BASE_D + 5);
             scrollContainer.add(tileText);
 
-            const priceText = this.add.text(cx, cy + CARD_H / 2 - 18, `🪙 ${price} gold`, {
-                fontSize: '12px', color: '#ffe066', fontStyle: 'bold'
+            // Price — centred in bottom strip
+            const priceText = this.add.text(cx, divY + PRICE_STRIP_H / 2, `🪙 ${price}g`, {
+                fontSize: '11px', color: '#ffe066', fontStyle: 'bold'
             }).setOrigin(0.5).setDepth(BASE_D + 5);
             scrollContainer.add(priceText);
 
@@ -11217,6 +11313,26 @@ class TownScene extends Phaser.Scene {
             ).setOrigin(0.5).setDepth(BASE_D + 4);
             shopObjs.push(emptyTxt);
         }
+
+        // ── Scroll bar (right rail) ──────────────────────────────────────────
+        const RAIL_X    = PANEL_X + PANEL_W / 2 - SCROLL_GUTTER / 2 - 2;
+        const RAIL_W    = 6;
+        const thumbH    = maxScroll > 0 ? Math.max(28, Math.round(SCROLL_H * SCROLL_H / contentH)) : SCROLL_H;
+        const thumbRange = SCROLL_H - thumbH;
+
+        const scrollRail = this.add.rectangle(RAIL_X, SCROLL_TOP + SCROLL_H / 2, RAIL_W, SCROLL_H, 0x222244, 1)
+            .setDepth(BASE_D + 5);
+        const scrollThumb = this.add.rectangle(RAIL_X, SCROLL_TOP + thumbH / 2, RAIL_W, thumbH, 0x7788cc, 1)
+            .setDepth(BASE_D + 6);
+        if (maxScroll <= 0) { scrollRail.setAlpha(0); scrollThumb.setAlpha(0); }
+        shopObjs.push(scrollRail, scrollThumb);
+
+        const updateScrollThumb = () => {
+            if (maxScroll <= 0) return;
+            const ty = SCROLL_TOP + thumbH / 2 + (scrollOffsetY / maxScroll) * thumbRange;
+            scrollThumb.setY(ty);
+        };
+        updateScrollThumb();
 
         // ── Scroll detection ─────────────────────────────────────────────────
         let dragStartY = null;
@@ -11245,6 +11361,7 @@ class TownScene extends Phaser.Scene {
             if (!isDragging) return;
             scrollOffsetY = Phaser.Math.Clamp(dragStartOffset - (ptr.y - dragStartY), 0, maxScroll);
             scrollContainer.setY(-scrollOffsetY);
+            updateScrollThumb();
         };
         const onUp = () => { dragStartY = null; };
         this.input.on('pointermove', onMove);
@@ -11375,8 +11492,12 @@ class TownScene extends Phaser.Scene {
             if ((sd.player.gold || 0) < price) return;
 
             sd.player.gold -= price;
+            sd.purchasedGemIds = sd.purchasedGemIds || [];
+            if (!sd.purchasedGemIds.includes(gem.id)) sd.purchasedGemIds.push(gem.id);
             sd.skillsInventoryGems = sd.skillsInventoryGems || [];
-            sd.skillsInventoryGems.push({ type: 'active', id: gem.id });
+            if (!sd.skillsInventoryGems.find(g => g.id === gem.id)) {
+                sd.skillsInventoryGems.push({ type: 'active', id: gem.id });
+            }
             writeSaveSlot(activeSaveSlot, sd);
 
             // Update local gold mirror
