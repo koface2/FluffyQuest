@@ -10637,72 +10637,11 @@ class TownScene extends Phaser.Scene {
 
         const heroY = Math.round(H * 0.60);
 
-        // Guinea pig hero — puppet-style rig (3/4 view, right side = foreground/near)
-        //
-        // Two canvas sizes in the atlas:
-        //   Large (2816×1536): torso, shoulders, arms, hands, feet
-        //   Small (2048×1117): head, legs, shins — different scale + origin
-        //
-        // Measured offsets (verified with Python compositing):
-        //   smallScale  = (657/559) * puppetScale ≈ 0.1175
-        //   smallOffX   = 83.5 px  (horizontal anchor aligns head centre over torso neck)
-        //   smallOffY   = -20.5 px (raised so head chin sits at torso collar, not chest)
-        //   foot_dx     = +84 px   (both feet shift right to connect under shins)
-        //   leftArm_dx  = -149 px  (left arm group shifts left to fill torso left armhole)
-        //   leftArm_dy  = +13 px   (slight downward nudge for shoulder socket alignment)
-        //   rightArm_dx = -7 px    (closes the 6-px gap between right shoulder and torso)
-        const puppetScale  = 0.10;
-        const smallScale   = (657 / 559) * puppetScale;  // ≈ 0.1175
-        const smallOffX    =  83.5;
-        const smallOffY    = -20.5;
-        const footDx       =  84;
-        const leftArmDx    = -149;
-        const leftArmDy    =  13;
-        const rightArmDx   =  -7;
-
-        const puppetW = Math.round(2816 * puppetScale);
-        const puppetH = Math.round(1536 * puppetScale);
-        const puppetContainerX = Math.round(W / 2 - puppetW / 2);
-        const puppetContainerY = Math.round(heroY - puppetH);
-        const charContainer = this.add.container(puppetContainerX, puppetContainerY)
-            .setDepth(10);
-
-        // Large-canvas part (2816×1536) with optional per-part offset
-        const addL = (frameName, dx = 0, dy = 0) => {
-            const img = this.make.image({ x: dx, y: dy, key: 'guineaparts', frame: frameName, add: false })
-                .setOrigin(0, 0).setScale(puppetScale);
-            charContainer.add(img);
-            return img;
-        };
-        // Small-canvas part (2048×1117) — always uses the shared small-canvas offset
-        const addS = (frameName) => {
-            const img = this.make.image({ x: smallOffX, y: smallOffY, key: 'guineaparts', frame: frameName, add: false })
-                .setOrigin(0, 0).setScale(smallScale);
-            charContainer.add(img);
-            return img;
-        };
-
-        // Z-ORDER back → front (right side = near/foreground in 3/4 view):
-        // 1. Left (background) arm — shifted left onto torso left armhole
-        addL('guinea_leftshoulder', leftArmDx, leftArmDy);
-        addL('guinea_leftarm',      leftArmDx, leftArmDy);
-        addL('guinea_lefthand',     leftArmDx, leftArmDy);
-        // 2. Left (background) leg
-        addS('guinea_leftleg');
-        addS('guinea_leftshin');
-        addL('guinea_leftfoot', footDx, 0);
-        // 3. Torso
-        addL('guinea_torso');
-        // 4. Head (chin sits at torso collar)
-        addS('guinea_head');
-        // 5. Right (foreground) leg
-        addS('guinea_rightleg');
-        addS('guinea_rightshin');
-        addL('guinea_rightfoot', footDx, 0);
-        // 6. Right (foreground) arm — fills torso right armhole, topmost layer
-        addL('guinea_rightshoulder', rightArmDx, 0);
-        addL('guinea_rightarm',      rightArmDx, 0);
-        addL('guinea_righthand',     rightArmDx, 0);
+        // Guinea pig hero — 3/4 puppet (right side = foreground).
+        // GuineaPigHero(scene, x, y): x/y is the torso pivot on screen.
+        // Torso pivot = (W/2 - 30, heroY - 90) matches the tuned atlas pivot position.
+        const guineaPigHero = new GuineaPigHero(this, Math.round(W / 2 - 30), Math.round(heroY - 90));
+        guineaPigHero.setDepth(10);
 
         // Thought bubble — only shown while Clover has not yet been rescued
         if (!getRescuedBunny()) {
