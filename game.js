@@ -1046,6 +1046,12 @@ function getChosenStarterSkill() {
 function setChosenStarterSkill(skillId) {
     localStorage.setItem('fq_starter_skill', skillId);
 }
+function getRescuedFox() {
+    return localStorage.getItem('fq_rescued_fox') === 'true';
+}
+function setRescuedFox(val) {
+    localStorage.setItem('fq_rescued_fox', val ? 'true' : 'false');
+}
 
 // ---------------------------------------------------------------------------
 // Save-slot helpers — up to 3 save files persisted in localStorage
@@ -1331,6 +1337,7 @@ class Match3Scene extends Phaser.Scene {
             itemIdCounter:          this.itemIdCounter,
             lastStoreRefreshBattle: this.lastStoreRefreshBattle,
             rescuedBunny:           getRescuedBunny(),
+            rescuedFox:             getRescuedFox(),
             skillGemsUnlocked:      getSkillGemsUnlocked(),
             starterSkill:           getChosenStarterSkill(),
             savedAt:                Date.now()
@@ -2023,7 +2030,7 @@ class Match3Scene extends Phaser.Scene {
         this.createSettingsMenu();
         this.initTutorials();
 
-        if (this.devMode) {
+        if (this.devMode || getRescuedFox()) {
             this.createRewardScreen();
         }
         this.createDeathScreen();
@@ -2175,7 +2182,7 @@ class Match3Scene extends Phaser.Scene {
                             if (this.allEnemiesDead() && !this.awaitingRewardChoice) {
                                 this.awaitingRewardChoice = true;
                                 this.time.delayedCall(1500, () => {
-                                    if (this.devMode) { this.showRewardScreen(); }
+                                    if (this.devMode || getRescuedFox()) { this.showRewardScreen(); }
                                     else { this.awaitingRewardChoice = false; this.startNextBattle(); }
                                 });
                                 this.isSwapping = true;
@@ -2297,7 +2304,7 @@ class Match3Scene extends Phaser.Scene {
             if (!this.awaitingRewardChoice) {
                 this.awaitingRewardChoice = true;
                 this.time.delayedCall(1500, () => {
-                    if (this.devMode) { this.showRewardScreen(); }
+                    if (this.devMode || getRescuedFox()) { this.showRewardScreen(); }
                     else { this.awaitingRewardChoice = false; this.startNextBattle(); }
                 });
             }
@@ -2426,7 +2433,7 @@ class Match3Scene extends Phaser.Scene {
             if (!this.awaitingRewardChoice) {
                 this.awaitingRewardChoice = true;
                 this.time.delayedCall(1500, () => {
-                    if (this.devMode) { this.showRewardScreen(); }
+                    if (this.devMode || getRescuedFox()) { this.showRewardScreen(); }
                     else { this.awaitingRewardChoice = false; this.startNextBattle(); }
                 });
             }
@@ -6059,6 +6066,24 @@ class Match3Scene extends Phaser.Scene {
             }
             this.autoSave();
             this.scene.start('DialogueScene', { returnScene: 'TownScene' });
+            return;
+        }
+
+        // After the seventh battle (first guinea lich defeat), trigger the fox rescue cutscene
+        if (this.battleNumber === 7 && !getRescuedFox()) {
+            setRescuedFox(true);
+            this.battleNumber += 1;
+            if (this.player && typeof this.player.level === 'number') {
+                this.player.level += 1;
+            }
+            this.autoSave();
+            this.scene.start('DialogueScene', {
+                returnScene: 'TownScene',
+                dialogue: FOX_RESCUE_DIALOGUE,
+                rightCharFrameStart: 16,
+                rightCharFrameEnd: 23,
+                rightCharScale: 0.75
+            });
             return;
         }
 
@@ -9840,7 +9865,7 @@ class Match3Scene extends Phaser.Scene {
                     this.awaitingRewardChoice = true;
                     this.stopAllParticleEffects();
                     this.time.delayedCall(1500, () => {
-                        if (this.devMode) { this.showRewardScreen(); }
+                        if (this.devMode || getRescuedFox()) { this.showRewardScreen(); }
                         else { this.awaitingRewardChoice = false; this.startNextBattle(); }
                     });
                 }
@@ -10072,7 +10097,7 @@ class Match3Scene extends Phaser.Scene {
                     this.awaitingRewardChoice = true;
                     this.stopAllParticleEffects();
                     this.time.delayedCall(1500, () => {
-                        if (this.devMode) { this.showRewardScreen(); }
+                        if (this.devMode || getRescuedFox()) { this.showRewardScreen(); }
                         else { this.awaitingRewardChoice = false; this.startNextBattle(); }
                     });
                 }
@@ -10427,6 +10452,7 @@ class SaveSelectScene extends Phaser.Scene {
     _loadSave(slotIndex, save) {
         // Unconditionally restore all story flags from the save
         setRescuedBunny(!!save.rescuedBunny);
+        setRescuedFox(!!save.rescuedFox);
         setSkillGemsUnlocked(!!save.skillGemsUnlocked);
         if (save.starterSkill) {
             setChosenStarterSkill(save.starterSkill);
@@ -10440,6 +10466,7 @@ class SaveSelectScene extends Phaser.Scene {
     // Start a brand-new game in the chosen slot: wipe story flags and any old save.
     _newGame(slotIndex) {
         setRescuedBunny(false);
+        setRescuedFox(false);
         setSkillGemsUnlocked(false);
         try { localStorage.removeItem('fq_starter_skill'); } catch (e) {}
         resetTutorialsSeen();
@@ -10728,6 +10755,23 @@ class TownScene extends Phaser.Scene {
                 bunnySprite.setInteractive({ useHandCursor: true });
                 bunnySprite.on('pointerup', () => this._showGemVendorShop(W, H));
             }
+        }
+
+        // ── Rescued fox (Renly) — appears in town after the guinea lich is defeated ──
+        if (getRescuedFox()) {
+            if (!this.anims.exists('town_fox_idle')) {
+                this.anims.create({
+                    key: 'town_fox_idle',
+                    frames: this.anims.generateFrameNumbers('rescues', { start: 16, end: 23 }),
+                    frameRate: 6,
+                    repeat: -1
+                });
+            }
+            const foxX = Math.round(W * 0.20);
+            const foxSprite = this.add.sprite(foxX, heroY, 'rescues')
+                .setScale(0.95)
+                .setOrigin(0.5, 1.0);
+            foxSprite.play('town_fox_idle');
         }
 
         // "Enter the Forest" button — stripped-down arcade mode
@@ -11553,17 +11597,29 @@ const DEFAULT_DIALOGUE = [
     { speaker: 'bunny', name: 'Clover',    text: "Right behind you, Pipsworth. Lead the way." },
 ];
 
+const FOX_RESCUE_DIALOGUE = [
+    { speaker: 'fox',  name: 'Renly',     text: "Impressive! I've never seen anyone bring down the Lich like that." },
+    { speaker: 'hero', name: 'Pipsworth', text: "I wasn't expecting company. Who are you?" },
+    { speaker: 'fox',  name: 'Renly',     text: "Renly. I patrol these woods. I keep stumbling upon equipment scattered everywhere — helms, boots, weapons. Far too much for one fox to carry." },
+    { speaker: 'hero', name: 'Pipsworth', text: "I could use something sturdier than bare paws." },
+    { speaker: 'fox',  name: 'Renly',     text: "Exactly what I thought. Come back to town with me. I'll show you how to wear the good stuff." },
+    { speaker: 'hero', name: 'Pipsworth', text: "Lead the way, Renly." },
+];
+
 class DialogueScene extends Phaser.Scene {
     constructor() {
         super('DialogueScene');
     }
 
     init(data) {
-        this.dialogueLines = (data && data.dialogue)    ? data.dialogue    : DEFAULT_DIALOGUE;
-        this.returnScene   = (data && data.returnScene) ? data.returnScene : null;
-        this.onComplete    = (data && data.onComplete)  ? data.onComplete  : null;
-        this.lineIndex     = 0;
-        this._inputLocked  = false;
+        this.dialogueLines        = (data && data.dialogue)             ? data.dialogue             : DEFAULT_DIALOGUE;
+        this.returnScene          = (data && data.returnScene)          ? data.returnScene          : null;
+        this.onComplete           = (data && data.onComplete)           ? data.onComplete           : null;
+        this.rightCharFrameStart  = (data && data.rightCharFrameStart  !== undefined) ? data.rightCharFrameStart  : 32;
+        this.rightCharFrameEnd    = (data && data.rightCharFrameEnd    !== undefined) ? data.rightCharFrameEnd    : 39;
+        this.rightCharScale       = (data && data.rightCharScale       !== undefined) ? data.rightCharScale       : 0.65;
+        this.lineIndex            = 0;
+        this._inputLocked         = false;
     }
 
     create() {
@@ -11588,11 +11644,12 @@ class DialogueScene extends Phaser.Scene {
             .play('dlg_hero_idle');
 
         // ── Rescued bunny (carrot bunny, row 4 of Rescues.png) — right side ─
-        this._ensureAnim('dlg_bunny_idle', 'rescues', 32, 39, 6);
+        const dlgRightKey = `dlg_right_${this.rightCharFrameStart}_${this.rightCharFrameEnd}`;
+        this._ensureAnim(dlgRightKey, 'rescues', this.rightCharFrameStart, this.rightCharFrameEnd, 6);
         this.bunnySprite = this.add.sprite(Math.round(W * 0.74), this.CHAR_Y, 'rescues')
-            .setScale(this.CHAR_SCALE * 0.65)
+            .setScale(this.CHAR_SCALE * this.rightCharScale)
             .setOrigin(0.5, 1)
-            .play('dlg_bunny_idle');
+            .play(dlgRightKey);
 
         // ── Name labels beneath each character ───────────────────────────
         const labelStyle = { fontSize: '13px', stroke: '#000000', strokeThickness: 3, fontStyle: 'bold' };
