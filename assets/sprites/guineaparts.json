@@ -1,1 +1,295 @@
-{"textures":[{"image":"texture","format":"RGBA8888","size":{"w":0,"h":0},"scale":1,"frames":[{"pivot":{"x":0.060014204545454544,"y":0.8444010416666666},"filename":"guinea_rightfoot","rotated":false,"trimmed":false,"sourceSize":{"w":2816,"h":1536},"spriteSourceSize":{"x":0,"y":0,"w":2816,"h":1536},"frame":{"x":2,"y":2,"w":2816,"h":1536}},{"pivot":{"x":0.16015625,"y":0.83203125},"filename":"guinea_leftfoot","rotated":false,"trimmed":false,"sourceSize":{"w":2816,"h":1536},"spriteSourceSize":{"x":0,"y":0,"w":2816,"h":1536},"frame":{"x":2822,"y":2,"w":2816,"h":1536}},{"pivot":{"x":0.3934659090909091,"y":0.4166666666666667},"filename":"guinea_torso","rotated":false,"trimmed":false,"sourceSize":{"w":2816,"h":1536},"spriteSourceSize":{"x":0,"y":0,"w":2816,"h":1536},"frame":{"x":2,"y":1542,"w":2816,"h":1536}},{"pivot":{"x":0.5735085227272727,"y":0.11067708333333333},"filename":"guinea_rightshoulder","rotated":false,"trimmed":false,"sourceSize":{"w":2816,"h":1536},"spriteSourceSize":{"x":0,"y":0,"w":2816,"h":1536},"frame":{"x":2822,"y":1542,"w":2816,"h":1536}},{"pivot":{"x":0.8132102272727273,"y":0.11067708333333333},"filename":"guinea_leftshoulder","rotated":false,"trimmed":false,"sourceSize":{"w":2816,"h":1536},"spriteSourceSize":{"x":0,"y":0,"w":2816,"h":1536},"frame":{"x":2,"y":3082,"w":2816,"h":1536}},{"pivot":{"x":0.5333806818181818,"y":0.318359375},"filename":"guinea_rightarm","rotated":false,"trimmed":false,"sourceSize":{"w":2816,"h":1536},"spriteSourceSize":{"x":0,"y":0,"w":2816,"h":1536},"frame":{"x":2822,"y":3082,"w":2816,"h":1536}},{"pivot":{"x":0.8799715909090909,"y":0.2819010416666667},"filename":"guinea_leftarm","rotated":false,"trimmed":false,"sourceSize":{"w":2816,"h":1536},"spriteSourceSize":{"x":0,"y":0,"w":2816,"h":1536},"frame":{"x":2,"y":4622,"w":2816,"h":1536}},{"pivot":{"x":0.9399857954545454,"y":0.404296875},"filename":"guinea_lefthand","rotated":false,"trimmed":false,"sourceSize":{"w":2816,"h":1536},"spriteSourceSize":{"x":0,"y":0,"w":2816,"h":1536},"frame":{"x":2822,"y":4622,"w":2816,"h":1536}},{"pivot":{"x":0.61328125,"y":0.404296875},"filename":"guinea_righthand","rotated":false,"trimmed":false,"sourceSize":{"w":2816,"h":1536},"spriteSourceSize":{"x":0,"y":0,"w":2816,"h":1536},"frame":{"x":2,"y":6162,"w":2816,"h":1536}},{"pivot":{"x":0.193359375,"y":0.73455684870188},"filename":"guinea_leftshin","rotated":false,"trimmed":false,"sourceSize":{"w":2048,"h":1117},"spriteSourceSize":{"x":0,"y":0,"w":2048,"h":1117},"frame":{"x":2822,"y":6162,"w":2048,"h":1117}},{"pivot":{"x":0.080078125,"y":0.73455684870188},"filename":"guinea_rightshin","rotated":false,"trimmed":false,"sourceSize":{"w":2048,"h":1117},"spriteSourceSize":{"x":0,"y":0,"w":2048,"h":1117},"frame":{"x":4874,"y":6162,"w":2048,"h":1117}},{"pivot":{"x":0.06689453125,"y":0.5384959713518352},"filename":"guinea_rightleg","rotated":false,"trimmed":false,"sourceSize":{"w":2048,"h":1117},"spriteSourceSize":{"x":0,"y":0,"w":2048,"h":1117},"frame":{"x":2,"y":7702,"w":2048,"h":1117}},{"pivot":{"x":0.16015625,"y":0.562667860340197},"filename":"guinea_leftleg","rotated":false,"trimmed":false,"sourceSize":{"w":2048,"h":1117},"spriteSourceSize":{"x":0,"y":0,"w":2048,"h":1117},"frame":{"x":2054,"y":7702,"w":2048,"h":1117}},{"pivot":{"x":0.11328125,"y":0.3549686660698299},"filename":"guinea_head","rotated":false,"trimmed":false,"sourceSize":{"w":2048,"h":1117},"spriteSourceSize":{"x":0,"y":0,"w":2048,"h":1117},"frame":{"x":4106,"y":7702,"w":2048,"h":1117}}]}]}
+{
+  "frames": {
+    "guinea_rightfoot": {
+      "frame": {
+        "x": 1,
+        "y": 1,
+        "w": 1308,
+        "h": 713
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 1308,
+        "h": 713
+      },
+      "sourceSize": {
+        "w": 2816,
+        "h": 1536
+      }
+    },
+    "guinea_leftfoot": {
+      "frame": {
+        "x": 1310,
+        "y": 1,
+        "w": 1308,
+        "h": 713
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 1308,
+        "h": 713
+      },
+      "sourceSize": {
+        "w": 2816,
+        "h": 1536
+      }
+    },
+    "guinea_torso": {
+      "frame": {
+        "x": 1,
+        "y": 716,
+        "w": 1308,
+        "h": 713
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 1308,
+        "h": 713
+      },
+      "sourceSize": {
+        "w": 2816,
+        "h": 1536
+      }
+    },
+    "guinea_rightshoulder": {
+      "frame": {
+        "x": 1310,
+        "y": 716,
+        "w": 1308,
+        "h": 713
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 1308,
+        "h": 713
+      },
+      "sourceSize": {
+        "w": 2816,
+        "h": 1536
+      }
+    },
+    "guinea_leftshoulder": {
+      "frame": {
+        "x": 1,
+        "y": 1431,
+        "w": 1308,
+        "h": 713
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 1308,
+        "h": 713
+      },
+      "sourceSize": {
+        "w": 2816,
+        "h": 1536
+      }
+    },
+    "guinea_rightarm": {
+      "frame": {
+        "x": 1310,
+        "y": 1431,
+        "w": 1308,
+        "h": 713
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 1308,
+        "h": 713
+      },
+      "sourceSize": {
+        "w": 2816,
+        "h": 1536
+      }
+    },
+    "guinea_leftarm": {
+      "frame": {
+        "x": 1,
+        "y": 2146,
+        "w": 1308,
+        "h": 713
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 1308,
+        "h": 713
+      },
+      "sourceSize": {
+        "w": 2816,
+        "h": 1536
+      }
+    },
+    "guinea_lefthand": {
+      "frame": {
+        "x": 1310,
+        "y": 2146,
+        "w": 1308,
+        "h": 713
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 1308,
+        "h": 713
+      },
+      "sourceSize": {
+        "w": 2816,
+        "h": 1536
+      }
+    },
+    "guinea_righthand": {
+      "frame": {
+        "x": 1,
+        "y": 2861,
+        "w": 1308,
+        "h": 713
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 1308,
+        "h": 713
+      },
+      "sourceSize": {
+        "w": 2816,
+        "h": 1536
+      }
+    },
+    "guinea_leftshin": {
+      "frame": {
+        "x": 1310,
+        "y": 2861,
+        "w": 951,
+        "h": 519
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 951,
+        "h": 519
+      },
+      "sourceSize": {
+        "w": 2048,
+        "h": 1117
+      }
+    },
+    "guinea_rightshin": {
+      "frame": {
+        "x": 2263,
+        "y": 2861,
+        "w": 951,
+        "h": 519
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 951,
+        "h": 519
+      },
+      "sourceSize": {
+        "w": 2048,
+        "h": 1117
+      }
+    },
+    "guinea_rightleg": {
+      "frame": {
+        "x": 1,
+        "y": 3576,
+        "w": 951,
+        "h": 519
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 951,
+        "h": 519
+      },
+      "sourceSize": {
+        "w": 2048,
+        "h": 1117
+      }
+    },
+    "guinea_leftleg": {
+      "frame": {
+        "x": 954,
+        "y": 3576,
+        "w": 951,
+        "h": 519
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 951,
+        "h": 519
+      },
+      "sourceSize": {
+        "w": 2048,
+        "h": 1117
+      }
+    },
+    "guinea_head": {
+      "frame": {
+        "x": 1907,
+        "y": 3576,
+        "w": 951,
+        "h": 519
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 951,
+        "h": 519
+      },
+      "sourceSize": {
+        "w": 2048,
+        "h": 1117
+      }
+    }
+  },
+  "meta": {
+    "app": "FluffyQuest atlas rebuild",
+    "version": "1.0",
+    "image": "guineaparts.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 3215,
+      "h": 4096
+    },
+    "scale": "1"
+  }
+}
