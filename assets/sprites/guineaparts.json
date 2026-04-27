@@ -281,6 +281,260 @@
       }
     }
   },
+  "puppet": {
+    "output": {
+      "partsDir": "assets/sprites/guineaparts_parts",
+      "assembledImage": "assets/sprites/guineapuppet.png",
+      "width": 420,
+      "height": 360,
+      "anchorX": 210,
+      "anchorY": 190
+    },
+    "staticPose": {
+      "torso": { "x": 99, "y": 126 },
+      "head": { "x": 135, "y": 114 },
+      "leftShoulder": { "x": 24, "y": 135 },
+      "leftArm": { "x": 12, "y": 136 },
+      "leftHand": { "x": 1, "y": 138 },
+      "rightShoulder": { "x": 96, "y": 131 },
+      "rightArm": { "x": 101, "y": 128 },
+      "rightHand": { "x": 101, "y": 131 },
+      "leftLeg": { "x": 125, "y": 151 },
+      "leftShin": { "x": 125, "y": 149 },
+      "leftFoot": { "x": 119, "y": 132 },
+      "rightLeg": { "x": 147, "y": 153 },
+      "rightShin": { "x": 148, "y": 152 },
+      "rightFoot": { "x": 145, "y": 134 }
+    },
+    "parts": {
+      "leftLeg": {
+        "frame": "guinea_leftleg",
+        "parent": "torso",
+        "layer": 1,
+        "scale": 0.1175,
+        "placement": {
+          "mode": "joint",
+          "x": 11.2,
+          "y": -10.7
+        },
+        "anchor": {
+          "mode": "frame-fraction",
+          "x": 0.16015625,
+          "y": 0.5622202327663384
+        }
+      },
+      "leftShin": {
+        "frame": "guinea_leftshin",
+        "parent": "leftLeg",
+        "layer": 1,
+        "scale": 0.1175,
+        "placement": {
+          "mode": "joint",
+          "x": 5,
+          "y": 24.1
+        },
+        "anchor": {
+          "mode": "frame-fraction",
+          "x": 0.193359375,
+          "y": 0.7341092211280215
+        }
+      },
+      "leftFoot": {
+        "frame": "guinea_leftfoot",
+        "parent": "leftShin",
+        "logicalParent": "leftShin",
+        "layer": 1,
+        "scale": 0.1,
+        "placement": {
+          "mode": "root-top-left",
+          "x": -26.8,
+          "y": -64
+        },
+        "anchor": {
+          "mode": "pixel",
+          "x": 226,
+          "y": 918
+        }
+      },
+      "leftShoulder": {
+        "frame": "guinea_leftshoulder",
+        "parent": "torso",
+        "layer": 2,
+        "scale": 0.1,
+        "placement": {
+          "mode": "joint",
+          "x": -30.8,
+          "y": -34
+        },
+        "anchor": {
+          "mode": "source-px",
+          "x": 2290,
+          "y": 170
+        }
+      },
+      "leftArm": {
+        "frame": "guinea_leftarm",
+        "parent": "leftShoulder",
+        "layer": 2,
+        "scale": 0.1,
+        "placement": {
+          "mode": "joint",
+          "x": -9.5,
+          "y": 28.7
+        },
+        "anchor": {
+          "mode": "source-px",
+          "x": 2478,
+          "y": 433
+        }
+      },
+      "leftHand": {
+        "frame": "guinea_lefthand",
+        "parent": "leftArm",
+        "layer": 2,
+        "scale": 0.1,
+        "placement": {
+          "mode": "joint",
+          "x": 17.8,
+          "y": 12.5
+        },
+        "anchor": {
+          "mode": "source-px",
+          "x": 2647,
+          "y": 621
+        }
+      },
+      "torso": {
+        "frame": "guinea_torso",
+        "parent": null,
+        "layer": 3,
+        "scale": 0.1,
+        "placement": {
+          "mode": "root",
+          "x": 0,
+          "y": 0
+        },
+        "anchor": {
+          "mode": "source-px",
+          "x": 1108,
+          "y": 640
+        }
+      },
+      "head": {
+        "frame": "guinea_head",
+        "parent": "torso",
+        "layer": 4,
+        "scale": 0.1175,
+        "placement": {
+          "mode": "joint",
+          "x": 0,
+          "y": -38
+        },
+        "anchor": {
+          "mode": "frame-fraction",
+          "x": 0.11328125,
+          "y": 0.35452103849597134
+        }
+      },
+      "rightLeg": {
+        "frame": "guinea_rightleg",
+        "parent": "torso",
+        "layer": 5,
+        "scale": 0.1175,
+        "placement": {
+          "mode": "joint",
+          "x": -11.2,
+          "y": -13.9
+        },
+        "anchor": {
+          "mode": "frame-fraction",
+          "x": 0.06689453125,
+          "y": 0.5380483437780662
+        }
+      },
+      "rightShin": {
+        "frame": "guinea_rightshin",
+        "parent": "rightLeg",
+        "layer": 5,
+        "scale": 0.1175,
+        "placement": {
+          "mode": "joint",
+          "x": 3.2,
+          "y": 25.8
+        },
+        "anchor": {
+          "mode": "frame-fraction",
+          "x": 0.080078125,
+          "y": 0.7341092211280215
+        }
+      },
+      "rightFoot": {
+        "frame": "guinea_rightfoot",
+        "parent": "rightShin",
+        "logicalParent": "rightShin",
+        "layer": 5,
+        "scale": 0.1,
+        "placement": {
+          "mode": "root-top-left",
+          "x": -26.8,
+          "y": -64
+        },
+        "anchor": {
+          "mode": "pixel",
+          "x": 226,
+          "y": 918
+        }
+      },
+      "rightShoulder": {
+        "frame": "guinea_rightshoulder",
+        "parent": "torso",
+        "layer": 6,
+        "scale": 0.1,
+        "placement": {
+          "mode": "joint",
+          "x": 43.7,
+          "y": -47
+        },
+        "anchor": {
+          "mode": "source-px",
+          "x": 1615,
+          "y": 170
+        }
+      },
+      "rightArm": {
+        "frame": "guinea_rightarm",
+        "parent": "rightShoulder",
+        "layer": 6,
+        "scale": 0.1,
+        "placement": {
+          "mode": "joint",
+          "x": -11.4,
+          "y": 31.9
+        },
+        "anchor": {
+          "mode": "source-px",
+          "x": 1501,
+          "y": 489
+        }
+      },
+      "rightHand": {
+        "frame": "guinea_righthand",
+        "parent": "rightArm",
+        "layer": 6,
+        "scale": 0.1,
+        "placement": {
+          "mode": "joint",
+          "x": 22.6,
+          "y": 13.2
+        },
+        "anchor": {
+          "mode": "source-px",
+          "x": 1727,
+          "y": 621
+        }
+      }
+    }
+  },
   "meta": {
     "app": "FluffyQuest atlas rebuild",
     "version": "1.0",

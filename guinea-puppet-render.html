@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guinea Puppet Render</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+    <script src="GuineaPigHero.js"></script>
+    <style>
+        html, body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: transparent;
+        }
+
+        body {
+            display: grid;
+            place-items: center;
+        }
+
+        canvas {
+            display: block;
+            background: transparent;
+            image-rendering: crisp-edges;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        class GuineaPuppetRenderScene extends Phaser.Scene {
+            constructor() {
+                super('GuineaPuppetRenderScene');
+            }
+
+            preload() {
+                this.load.atlas('guineaparts', 'assets/sprites/guineaparts.png', 'assets/sprites/guineaparts.json');
+            }
+
+            create() {
+                this.cameras.main.setBackgroundColor('rgba(0, 0, 0, 0)');
+
+                new GuineaPigHero(this, 210, 190);
+
+                window.__GUINEA_PUPPET_READY__ = true;
+            }
+        }
+
+        const atlasOutput = {
+            width: 420,
+            height: 360,
+        };
+
+        window.__GUINEA_PUPPET_READY__ = false;
+
+        new Phaser.Game({
+            type: Phaser.CANVAS,
+            width: atlasOutput.width,
+            height: atlasOutput.height,
+            transparent: true,
+            backgroundColor: 'rgba(0, 0, 0, 0)',
+            scene: [GuineaPuppetRenderScene],
+            render: {
+                antialias: false,
+                pixelArt: true,
+                transparent: true,
+            },
+        });
+    </script>
+</body>
+</html>

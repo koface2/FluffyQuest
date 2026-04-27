@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "build:guinea-puppet": "node scripts/build-guinea-puppet.js"
+  },
   "devDependencies": {
     "pngjs": "^7.0.0"
   }

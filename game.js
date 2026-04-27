@@ -10595,6 +10595,7 @@ class LoadScreen extends Phaser.Scene {
         this.load.image('forest', 'assets/Screens/Forest.png');
         this.load.spritesheet('rescues', 'assets/sprites/Rescues.png', { frameWidth: 256, frameHeight: 256 });
         this.load.atlas('guineaparts', 'assets/sprites/guineaparts.png', 'assets/sprites/guineaparts.json');
+        this.load.image('guineapuppet', 'assets/sprites/guineapuppet.png');
         this.load.audio('townsong', 'assets/music/townsong.mp3');
         this.load.audio('battlesong', 'assets/music/battlesong.mp3');
     }
@@ -10664,11 +10665,11 @@ class TownScene extends Phaser.Scene {
 
         const heroY = Math.round(H * 0.60);
 
-        // Guinea pig hero — 3/4 puppet (right side = foreground).
-        // GuineaPigHero(scene, x, y): x/y is the torso pivot on screen.
-        // Torso pivot = (W/2 - 30, heroY - 90) matches the tuned atlas pivot position.
-        const guineaPigHero = new GuineaPigHero(this, Math.round(W / 2 - 30), Math.round(heroY - 90));
-        guineaPigHero.setDepth(10);
+        // Guinea pig hero — assembled puppet image using the same torso pivot
+        // position as the old modular GuineaPigHero container.
+        this.add.image(Math.round(W / 2 - 30), Math.round(heroY - 90), 'guineapuppet')
+            .setOrigin(210 / 420, 190 / 360)
+            .setDepth(10);
 
         // Thought bubble — only shown while Clover has not yet been rescued
         if (!getRescuedBunny()) {
