@@ -46,16 +46,16 @@ const GUINEA_PIG_PUPPET_DEF = {
         head:          { x: 135, y: 114 },
         leftShoulder:  { x: 24,  y: 135 },
         leftArm:       { x: 12,  y: 136 },
-        leftHand:      { x: 1,   y: 138 },
+        leftHand:      { x: 1,   y: 136 }, // y: 138 → 136 to close gap with leftArm
         rightShoulder: { x: 96,  y: 131 },
         rightArm:      { x: 101, y: 128 },
         rightHand:     { x: 101, y: 131 },
         leftLeg:       { x: 125, y: 151 },
         leftShin:      { x: 125, y: 149 },
-        leftFoot:      { x: 119, y: 132 },
+        leftFoot:      { x: 119, y: 141 }, // y: 132 → 141 so foot sits at shin bottom
         rightLeg:      { x: 147, y: 153 },
         rightShin:     { x: 148, y: 152 },
-        rightFoot:     { x: 145, y: 134 },
+        rightFoot:     { x: 145, y: 144 }, // y: 134 → 144 so foot sits at shin bottom
     },
 
     // parts[partName] mirrors puppet.parts in guineaparts.json.
@@ -85,21 +85,21 @@ const GUINEA_PIG_PUPPET_DEF = {
         leftShoulder: {
             frame: 'guinea_leftshoulder',
             parent: 'torso',
-            layer: 2,
+            layer: 6, // near/front arm — in front of torso
             scale: 0.1,
             anchor: { mode: 'source-px', x: 2290, y: 170 },
         },
         leftArm: {
             frame: 'guinea_leftarm',
             parent: 'leftShoulder',
-            layer: 2,
+            layer: 6,
             scale: 0.1,
             anchor: { mode: 'source-px', x: 2478, y: 433 },
         },
         leftHand: {
             frame: 'guinea_lefthand',
             parent: 'leftArm',
-            layer: 2,
+            layer: 6,
             scale: 0.1,
             anchor: { mode: 'source-px', x: 2647, y: 621 },
         },
@@ -141,21 +141,21 @@ const GUINEA_PIG_PUPPET_DEF = {
         rightShoulder: {
             frame: 'guinea_rightshoulder',
             parent: 'torso',
-            layer: 6,
+            layer: 2, // far/back arm — behind torso
             scale: 0.1,
             anchor: { mode: 'source-px', x: 1615, y: 170 },
         },
         rightArm: {
             frame: 'guinea_rightarm',
             parent: 'rightShoulder',
-            layer: 6,
+            layer: 2,
             scale: 0.1,
             anchor: { mode: 'source-px', x: 1501, y: 489 },
         },
         rightHand: {
             frame: 'guinea_righthand',
             parent: 'rightArm',
-            layer: 6,
+            layer: 2,
             scale: 0.1,
             anchor: { mode: 'source-px', x: 1727, y: 621 },
         },

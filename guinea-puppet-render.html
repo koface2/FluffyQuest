@@ -41,15 +41,16 @@
             create() {
                 this.cameras.main.setBackgroundColor('rgba(0, 0, 0, 0)');
 
-                new GuineaPigHero(this, 210, 190);
+                const puppet = new GuineaPigHero(this, 420, 380);
+                puppet.setScale(2);
 
                 window.__GUINEA_PUPPET_READY__ = true;
             }
         }
 
         const atlasOutput = {
-            width: 420,
-            height: 360,
+            width: 840,
+            height: 720,
         };
 
         window.__GUINEA_PUPPET_READY__ = false;
