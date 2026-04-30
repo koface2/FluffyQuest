@@ -1281,6 +1281,7 @@ class Match3Scene extends Phaser.Scene {
         this.skillInfoPopup = null;
         this.selectedGemLabel = null;
         this.tutorialPopupGroup = null;
+        this.pendingEquipmentTutorial = false;
         // NOTE: tutorial seen flags persist permanently in localStorage — do NOT reset here
 
         // If a save slot is active (set by SaveSelectScene), overlay saved progress on top of defaults.
@@ -1313,7 +1314,10 @@ class Match3Scene extends Phaser.Scene {
 
         // Each forest run starts fresh — reset level and battle progress.
         // Gold is preserved across runs (it stays in this.player.gold).
-        if (!this.devMode) {
+        // Exception: when returning from the fox cutscene, the run continues
+        // from the saved battle number rather than resetting to 1.
+        this.showRewardAfterFox = !!(data && data.showRewardAfterFox);
+        if (!this.devMode && !this.showRewardAfterFox) {
             this.battleNumber = 1;
             if (this.player) this.player.level = 1;
         }
@@ -1485,21 +1489,21 @@ class Match3Scene extends Phaser.Scene {
 
     getEnemyPositions(count) {
         const rightCX = 293;
-        if (count === 1) return [{ x: rightCX, y: 80, scale: 1.20, barW: 166, barY: 188 }];
+        if (count === 1) return [{ x: rightCX, y: 115, scale: 1.20, barW: 166, barY: 223 }];
         if (count === 2) return [
-            { x: rightCX - 34, y: 66, scale: 0.95, barW: 82, barY: 148 },
-            { x: rightCX + 34, y: 66, scale: 0.95, barW: 82, barY: 162 }
+            { x: rightCX - 34, y: 101, scale: 0.95, barW: 82, barY: 183 },
+            { x: rightCX + 34, y: 101, scale: 0.95, barW: 82, barY: 197 }
         ];
         if (count === 3) return [
-            { x: rightCX - 38, y: 54, scale: 0.84, barW: 72, barY: 120 },
-            { x: rightCX + 38, y: 54, scale: 0.84, barW: 72, barY: 134 },
-            { x: rightCX,      y: 114, scale: 0.84, barW: 72, barY: 178 }
+            { x: rightCX - 38, y: 89, scale: 0.84, barW: 72, barY: 155 },
+            { x: rightCX + 38, y: 89, scale: 0.84, barW: 72, barY: 169 },
+            { x: rightCX,      y: 149, scale: 0.84, barW: 72, barY: 213 }
         ];
         return [
-            { x: rightCX - 36, y: 48, scale: 0.76, barW: 66, barY: 104 },
-            { x: rightCX + 36, y: 48, scale: 0.76, barW: 66, barY: 118 },
-            { x: rightCX - 36, y: 118, scale: 0.76, barW: 66, barY: 172 },
-            { x: rightCX + 36, y: 118, scale: 0.76, barW: 66, barY: 186 }
+            { x: rightCX - 36, y: 83, scale: 0.76, barW: 66, barY: 139 },
+            { x: rightCX + 36, y: 83, scale: 0.76, barW: 66, barY: 153 },
+            { x: rightCX - 36, y: 153, scale: 0.76, barW: 66, barY: 207 },
+            { x: rightCX + 36, y: 153, scale: 0.76, barW: 66, barY: 221 }
         ];
     }
 
@@ -2040,6 +2044,17 @@ class Match3Scene extends Phaser.Scene {
 
         this.createTopGoldBar();
         this.showGameScreen();
+
+        // Returning from the fox cutscene: jump straight into the reward screen
+        // for the battle just completed, then show the equipment tutorial.
+        if (this.showRewardAfterFox) {
+            this.showRewardAfterFox = false;
+            this.pendingEquipmentTutorial = true;
+            this.awaitingRewardChoice = true;
+            this.time.delayedCall(300, () => {
+                this.showRewardScreen();
+            });
+        }
 
         // Global pointer-up: always dismiss tile info popup when finger lifts anywhere
         this.input.on('pointerup', () => this.hideTileInfoPopup());
@@ -5593,16 +5608,16 @@ class Match3Scene extends Phaser.Scene {
         const leftCX = 97;
         const rightCX = 293;
         const panelW = 188;
-        const panelH = 250;
+        const panelH = 220;
         const barW = 166;
 
         // Divider line between panels
-        this.hudContainer.add(this.add.rectangle(195, panelH / 2 + 4, 2, panelH, 0x444444, 1));
+        this.hudContainer.add(this.add.rectangle(195, panelH / 2 + 22, 2, panelH, 0x444444, 1));
 
         // --- Player panel (left) ---
-        this.hudContainer.add(this.add.rectangle(leftCX, panelH / 2 + 4, panelW, panelH, 0x111111, 0.9).setOrigin(0.5));
+        this.hudContainer.add(this.add.rectangle(leftCX, panelH / 2 + 22, panelW, panelH, 0x111111, 0.9).setOrigin(0.5));
         // Sprite-based player character
-        this.playerSprite = this.add.sprite(leftCX, 80, 'warrior').setOrigin(0.5, 0.5);
+        this.playerSprite = this.add.sprite(leftCX, 115, 'warrior').setOrigin(0.5, 0.5);
         this.playerSprite.setScale(1.3);
         this.playerSprite.play('warrior_idle');
         this.playerSprite.on('animationcomplete', (anim) => {
@@ -5611,27 +5626,27 @@ class Match3Scene extends Phaser.Scene {
             }
         });
         this.hudContainer.add(this.playerSprite);
-        this.heroTitleText = this.add.text(leftCX, 140, `Hero (Lv. ${this.player.level})`, { fontSize: '17px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
+        this.heroTitleText = this.add.text(leftCX, 175, `Hero (Lv. ${this.player.level})`, { fontSize: '17px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
         this.hudContainer.add(this.heroTitleText);
         // --- Energy Shield bar ---
-        this.playerShieldLabel = this.add.text(14, 148, 'ES', { fontSize: '9px', color: '#66aaff' });
+        this.playerShieldLabel = this.add.text(14, 183, 'ES', { fontSize: '9px', color: '#66aaff' });
         this.hudContainer.add(this.playerShieldLabel);
-        this.playerShieldBarBg = this.add.rectangle(14, 157, barW, 8, 0x333344).setOrigin(0, 0.5);
+        this.playerShieldBarBg = this.add.rectangle(14, 192, barW, 8, 0x333344).setOrigin(0, 0.5);
         this.hudContainer.add(this.playerShieldBarBg);
-        this.playerShieldBar = this.add.rectangle(14, 157, 0, 8, 0x3388ff).setOrigin(0, 0.5);
+        this.playerShieldBar = this.add.rectangle(14, 192, 0, 8, 0x3388ff).setOrigin(0, 0.5);
         this.hudContainer.add(this.playerShieldBar);
-        this.playerShieldText = this.add.text(14 + barW / 2, 157, '', { fontSize: '7px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5);
+        this.playerShieldText = this.add.text(14 + barW / 2, 192, '', { fontSize: '7px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5);
         this.hudContainer.add(this.playerShieldText);
         // --- HP bar ---
-        this.hudContainer.add(this.add.text(14, 163, 'HP', { fontSize: '11px', color: '#aaa' }));
-        this.playerHealthBarBg = this.add.rectangle(14, 174, barW, 12, 0x444444).setOrigin(0, 0.5);
+        this.hudContainer.add(this.add.text(14, 198, 'HP', { fontSize: '11px', color: '#aaa' }));
+        this.playerHealthBarBg = this.add.rectangle(14, 209, barW, 12, 0x444444).setOrigin(0, 0.5);
         this.hudContainer.add(this.playerHealthBarBg);
-        this.playerHealthBar = this.add.rectangle(14, 174, barW, 12, 0x00cc00).setOrigin(0, 0.5);
+        this.playerHealthBar = this.add.rectangle(14, 209, barW, 12, 0x00cc00).setOrigin(0, 0.5);
         this.hudContainer.add(this.playerHealthBar);
-        this.playerHealthText = this.add.text(14 + barW / 2, 174, '', { fontSize: '9px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5);
+        this.playerHealthText = this.add.text(14 + barW / 2, 209, '', { fontSize: '9px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5);
         this.hudContainer.add(this.playerHealthText);
         // --- Enemy panel (right) ---
-        this.hudContainer.add(this.add.rectangle(rightCX, panelH / 2 + 4, panelW, panelH, 0x111111, 0.9).setOrigin(0.5));
+        this.hudContainer.add(this.add.rectangle(rightCX, panelH / 2 + 22, panelW, panelH, 0x111111, 0.9).setOrigin(0.5));
         // Build initial enemy group
         this.encounterSize = 1;
         this.buildEnemyGroup(this.battleNumber, this.hudContainer);
@@ -5639,8 +5654,8 @@ class Match3Scene extends Phaser.Scene {
         // --- Gold display (under player HP bar) ---
         // --- Gold display and full-game screens/buttons (dev mode only) ---
         if (this.devMode) {
-            this.goldDisplayIcon = this.add.text(14, 190, '\ud83e\ude99', { fontSize: '14px' }).setOrigin(0, 0.5);
-            this.goldDisplayText = this.add.text(32, 190, '0', { fontSize: '13px', color: '#ffd966', fontStyle: 'bold' }).setOrigin(0, 0.5);
+            this.goldDisplayIcon = this.add.text(14, 225, '\ud83e\ude99', { fontSize: '14px' }).setOrigin(0, 0.5);
+            this.goldDisplayText = this.add.text(32, 225, '0', { fontSize: '13px', color: '#ffd966', fontStyle: 'bold' }).setOrigin(0, 0.5);
             this.hudContainer.add([this.goldDisplayIcon, this.goldDisplayText]);
 
             this.createEquipmentScreen();
@@ -5648,14 +5663,14 @@ class Match3Scene extends Phaser.Scene {
             this.createTalentScreen();
             this.createStoreScreen();
             // 4 buttons evenly spaced across 390px width
-            this.createEquipmentButton(49, 210);
-            this.createSkillsButton(147, 210);
-            this.createTalentButton(245, 210);
-            this.createStoreButton(343, 210);
+            this.createEquipmentButton(49, 245);
+            this.createSkillsButton(147, 245);
+            this.createTalentButton(245, 245);
+            this.createStoreButton(343, 245);
         } else if (getSkillGemsUnlocked()) {
             // Skill gems were unlocked via the rescue story event — show the Skills screen
             this.createSkillsScreen();
-            this.createSkillsButton(195, 210);
+            this.createSkillsButton(195, 245);
         }
 
         this.updatePlayerUI();
@@ -6078,7 +6093,8 @@ class Match3Scene extends Phaser.Scene {
             }
             this.autoSave();
             this.scene.start('DialogueScene', {
-                returnScene: 'TownScene',
+                returnScene: 'Match3Scene',
+                returnData: { showRewardAfterFox: true },
                 dialogue: FOX_RESCUE_DIALOGUE,
                 rightCharFrameStart: 16,
                 rightCharFrameEnd: 23,
@@ -6139,6 +6155,18 @@ class Match3Scene extends Phaser.Scene {
         this.addCombatLog(`Battle ${this.battleNumber}: ${enemyNames} appear! (${this.encounterSize} foe${this.encounterSize > 1 ? 's' : ''})`, '#ffcc66');
         if (this.devMode) {
             this.addCombatLog(`Talent point earned! (${this.player.talentPoints} available)`, '#ffd700');
+        }
+
+        // Show equipment tutorial the first time the player continues after the fox scene
+        if (this.pendingEquipmentTutorial) {
+            this.pendingEquipmentTutorial = false;
+            this.time.delayedCall(600, () => {
+                this.showTutorialPopup(
+                    'tutorial_equipment',
+                    '🦺 Equipment drops after every battle!\nTap "Char" to open your character screen and manage your gear. Each slot boosts your stats — stronger gear means harder hits and more survivability.',
+                    null
+                );
+            });
         }
     }
 
@@ -10594,7 +10622,6 @@ class LoadScreen extends Phaser.Scene {
         this.load.image('town', 'assets/Screens/Town.png');
         this.load.image('forest', 'assets/Screens/Forest.png');
         this.load.spritesheet('rescues', 'assets/sprites/Rescues.png', { frameWidth: 256, frameHeight: 256 });
-        this.load.atlas('guineaparts', 'assets/sprites/guineaparts.png', 'assets/sprites/guineaparts.json');
         this.load.audio('townsong', 'assets/music/townsong.mp3');
         this.load.audio('battlesong', 'assets/music/battlesong.mp3');
     }
@@ -10662,18 +10689,23 @@ class TownScene extends Phaser.Scene {
             stroke: '#000000', strokeThickness: 6
         }).setOrigin(0.5);
 
-        const heroY = Math.round(H * 0.60);
+        // Warrior stands just above the "Enter the Forest" button (btnY = H - 100, btnH = 54)
+        const heroY = H - 100 - 27 - 10;  // button top minus small gap
 
-        // Guinea pig hero — 3/4 puppet (right side = foreground).
-        // GuineaPigHero(scene, x, y): x/y is the torso pivot on screen.
-        // Torso pivot = (W/2 - 30, heroY - 90) matches the tuned atlas pivot position.
-        const guineaPigHero = new GuineaPigHero(this, Math.round(W / 2 - 30), Math.round(heroY - 90));
-        guineaPigHero.setDepth(10);
+        // Warrior hero sprite — same animation as in combat
+        if (!this.anims.exists('warrior_idle')) {
+            this.anims.create({ key: 'warrior_idle', frames: this.anims.generateFrameNumbers('warrior', { start: 0, end: 5 }), frameRate: 5, repeat: -1 });
+        }
+        const townHero = this.add.sprite(Math.round(W / 2), heroY, 'warrior')
+            .setOrigin(0.5, 1.0)
+            .setScale(0.9)
+            .setDepth(10);
+        townHero.play('warrior_idle');
 
         // Thought bubble — only shown while Clover has not yet been rescued
         if (!getRescuedBunny()) {
             const bubbleCX = W / 2 + 90;
-            const bubbleCY = heroY - 290;
+            const bubbleCY = heroY - 150;
             const bubbleW  = 200;
             const bubbleH  = 70;
             const gfx = this.add.graphics();
@@ -10683,7 +10715,7 @@ class TownScene extends Phaser.Scene {
             gfx.strokeRoundedRect(bubbleCX - bubbleW / 2, bubbleCY - bubbleH / 2, bubbleW, bubbleH, 18);
             // Trailing thought dots curving toward the warrior's head (upper-center of sprite)
             const dotAnchorX = W / 2 + 16;
-            const dotAnchorY = heroY - 210;
+            const dotAnchorY = heroY - 120;
             [[dotAnchorX, dotAnchorY, 8], [dotAnchorX + 14, dotAnchorY - 22, 5.5], [dotAnchorX + 26, dotAnchorY - 42, 3.5]].forEach(([dx, dy, dr]) => {
                 gfx.fillStyle(0xffffff, 0.93);
                 gfx.fillCircle(dx, dy, dr);
@@ -11614,6 +11646,7 @@ class DialogueScene extends Phaser.Scene {
     init(data) {
         this.dialogueLines        = (data && data.dialogue)             ? data.dialogue             : DEFAULT_DIALOGUE;
         this.returnScene          = (data && data.returnScene)          ? data.returnScene          : null;
+        this.returnData           = (data && data.returnData)           ? data.returnData           : null;
         this.onComplete           = (data && data.onComplete)           ? data.onComplete           : null;
         this.rightCharFrameStart  = (data && data.rightCharFrameStart  !== undefined) ? data.rightCharFrameStart  : 32;
         this.rightCharFrameEnd    = (data && data.rightCharFrameEnd    !== undefined) ? data.rightCharFrameEnd    : 39;
@@ -11792,7 +11825,7 @@ class DialogueScene extends Phaser.Scene {
             if (this.onComplete) {
                 this.onComplete();
             } else if (this.returnScene) {
-                this.scene.start(this.returnScene);
+                this.scene.start(this.returnScene, this.returnData || undefined);
             }
         });
     }

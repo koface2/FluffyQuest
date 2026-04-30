@@ -1,281 +1,201 @@
 /**
- * GuineaPigHero — Modular 2D puppet built from the guineaparts texture atlas.
+ * GuineaPigHero - articulated guinea pig puppet assembled from guineaparts.
  *
- * Constructor: new GuineaPigHero(scene, x, y)
- *   x, y  — screen position of the torso pivot (the character's body-center joint).
- *            Use setDepth() on the returned instance to control layering.
+ * All origins and joint offsets are derived mathematically from guineaparts.json:
  *
- * Public properties after construction:
- *   .torsoNode  — Phaser.Container holding torso sprite + head sprite
- *   .torso      — torso Image
- *   .head       — head Image
- *   .farLeg     — Phaser.Container  (left leg group — back layer)
- *   .farArm     — Phaser.Container  (left arm group — back layer)
- *   .nearLeg    — Phaser.Container  (right leg group — front layer)
- *   .nearArm    — Phaser.Container  (right arm group — front layer)
+ *   setOrigin for source-px anchors:
+ *     ox = anchor.x / atlasFrame.w   (NOT source canvas width!)
+ *     oy = anchor.y / atlasFrame.h
+ *     Large atlas frame = 1308 × 713, scale 0.1  → displayed 130.8 × 71.3 px
+ *     Small atlas frame =  951 × 519, scale 0.1175 → displayed 111.7 × 61.0 px
  *
- * Public method:
- *   .setFacing('left' | 'right')  — mirrors the whole puppet on X
+ *   setOrigin for frame-fraction anchors:
+ *     ox/oy = the fraction values verbatim from the JSON
+ *
+ *   Joint offsets (canvas px = Phaser px at these scales):
+ *     offset = child.anchorPoint - parent.anchorPoint
+ *     anchorPoint = staticPose.topLeft + (anchor * scale)
  */
 
-// ─────────────────────────────────────────────────────────────────────────────
-// JOINT CONFIG — all tunable offsets in screen pixels.
-//
-// The GuineaPigHero container's (0, 0) is the TORSO PIVOT — the atlas-defined
-// joint at pixel (1108, 640) of the 2816×1536 canvas, rendered at SCALE_LARGE.
-//
-// Two canvas sizes live in the atlas:
-//   Large 2816×1536 — torso, shoulders, arms, hands, feet  (scale = SCALE_LARGE)
-//   Small 2048×1117 — head, upper-legs, shins             (scale = SCALE_SMALL)
-//
-// All offsets are RELATIVE TO THE TORSO PIVOT (container origin).
-// ─────────────────────────────────────────────────────────────────────────────
-const GUINEA_PIG_CONFIG = {
+// Joint offsets pre-computed from guineaparts.json staticPose + anchor data.
+// All values are Phaser pixels (= canvas pixels at scale 0.1 / 0.1175).
+const GUINEA_PIG_RIG = {
+    joints: {
+        // relative to torso anchor (210, 190) in canvas space
+        neck:          { x: -62.15, y: -54.38 },
+        leftShoulder:  { x:  43.20, y: -38.00 },
+        rightShoulder: { x:  47.70, y: -42.00 },
+        leftHip:       { x: -66.90, y:  -4.71 },
+        rightHip:      { x: -55.33, y:  -4.19 },
+        // relative to leftShoulder anchor
+        leftElbow:     { x:   6.80, y:  27.30 },
+        // relative to leftArm anchor
+        leftWrist:     { x:   5.90, y:  20.80 },
+        // relative to rightShoulder anchor
+        rightElbow:    { x:  -6.40, y:  28.90 },
+        // relative to rightArm anchor
+        rightWrist:    { x:  22.60, y:  16.20 },
+        // relative to leftLeg anchor
+        leftKnee:      { x:   3.71, y:   8.48 },
+        // relative to leftShin anchor
+        leftAnkle:     { x:  -5.01, y:  30.03 },
+        // relative to rightLeg anchor
+        rightKnee:     { x:   2.47, y:  10.96 },
+        // relative to rightShin anchor
+        rightAnkle:    { x:  10.65, y:  29.03 },
+    },
 
-    // ── Scales ────────────────────────────────────────────────────────────────
-    SCALE_LARGE : 0.10,    // 2816 → 281.6 px wide on screen
-    SCALE_SMALL : 0.1175,  // 2048 → 240.6 px; corrects for different canvas viewport
-                           // Derived: k = (657/559) × SCALE_LARGE ≈ 1.1753 × 0.10
-
-    // ── Torso origin (atlas pivot fraction) ──────────────────────────────────
-    // The torso sprite is placed at (0, 0) in the container using this origin,
-    // so the torso's atlas pivot lands exactly at the container's (0, 0).
-    TORSO_ORIGIN_X : 1108 / 2816,  // ≈ 0.3934
-    TORSO_ORIGIN_Y : 640  / 1536,  // ≈ 0.4167
-
-    // ── Head origin (atlas pivot fraction — chin/neck attachment) ─────────────
-    // Placing origin near the bottom of the head keeps the chin on the neck socket.
-    HEAD_ORIGIN_X : 232 / 2048,   // ≈ 0.1133  (atlas pivot x)
-    HEAD_ORIGIN_Y : 396 / 1117,   // ≈ 0.3546  (atlas pivot y — chin)
-
-    // ── Neck socket (where head chin attaches, torso-local px) ───────────────
-    // Derived from small-canvas offset and head pivot measurement.
-    NECK_X :  0.0,
-    NECK_Y : -38.0,
-
-    // ── Shoulder sockets (torso-local px, at top sides of torso) ─────────────
-    SHOULDER_NEAR_X :  43.7,  // right shoulder — atlas right-shoulder pivot
-    SHOULDER_NEAR_Y : -47.0,
-    SHOULDER_FAR_X  : -30.8,  // left shoulder  — atlas left-shoulder pivot
-    SHOULDER_FAR_Y  : -34.0,
-
-    // ── Hip sockets (torso-local px, at bottom of torso) ─────────────────────
-    HIP_NEAR_X : -11.2,  // right hip — atlas right-leg pivot mapped to torso-local
-    HIP_NEAR_Y : -13.9,
-    HIP_FAR_X  :  11.2,  // left hip
-    HIP_FAR_Y  : -10.7,
-
-    // ── Elbow sockets (shoulder-local px — where arm top connects) ───────────
-    // Relative to each shoulder's proximal pivot.
-    ELBOW_NEAR_X : -11.4,
-    ELBOW_NEAR_Y :  31.9,
-    ELBOW_FAR_X  :  -9.5,
-    ELBOW_FAR_Y  :  28.7,
-
-    // ── Wrist sockets (arm-local px — where hand top connects) ───────────────
-    WRIST_NEAR_X :  22.6,
-    WRIST_NEAR_Y :  13.2,
-    WRIST_FAR_X  :  17.8,
-    WRIST_FAR_Y  :  12.5,
-
-    // ── Knee sockets (upper-leg-local px — where shin top connects) ──────────
-    KNEE_NEAR_X :  3.2,
-    KNEE_NEAR_Y : 25.8,
-    KNEE_FAR_X  :  5.0,
-    KNEE_FAR_Y  : 24.1,
-
-    // ── Ankle sockets (shin-local px — where foot top connects) ──────────────
-    // The foot sprites live on the large canvas; they are placed at FOOT_DX/DY
-    // in main-container space rather than shin-local space because the two canvas
-    // sizes have different scale systems.  The atlas fur artwork bridges the gap.
-    ANKLE_NEAR_X :  3.8,
-    ANKLE_NEAR_Y : 15.9,
-    ANKLE_FAR_X  :  4.2,
-    ANKLE_FAR_Y  : 15.6,
-
-    // ── Absolute foot positions (main-container px) ───────────────────────────
-    // Both feet share the same image-top-left offset.  foot_dx=84 shifts them
-    // rightward from their raw canvas position to sit under the shins.
-    FOOT_DX : -26.8,   // = -(torso_pivot_x × SCALE_LARGE) + 84
-    FOOT_DY : -64.0,   // = -(torso_pivot_y × SCALE_LARGE)
+    // Part definitions: frame name, draw scale, and pivot origin fractions.
+    // ox/oy = anchor.x / atlasFrameWidth  (source-px parts)
+    //       = frame-fraction value directly (small parts)
+    parts: {
+        // ── Large atlas frames 1308×713, scale 0.1 ────────────────────────
+        torso:         { frame: 'guinea_torso',         scale: 0.1,    ox: 0.8471, oy: 0.8976 },
+        leftShoulder:  { frame: 'guinea_leftshoulder',  scale: 0.1,    ox: 1.7508, oy: 0.2384 },
+        leftArm:       { frame: 'guinea_leftarm',       scale: 0.1,    ox: 1.8945, oy: 0.6073 },
+        leftHand:      { frame: 'guinea_lefthand',      scale: 0.1,    ox: 2.0237, oy: 0.8710 },
+        rightShoulder: { frame: 'guinea_rightshoulder', scale: 0.1,    ox: 1.2347, oy: 0.2384 },
+        rightArm:      { frame: 'guinea_rightarm',      scale: 0.1,    ox: 1.1476, oy: 0.6858 },
+        rightHand:     { frame: 'guinea_righthand',     scale: 0.1,    ox: 1.3204, oy: 0.8710 },
+        leftFoot:      { frame: 'guinea_leftfoot',      scale: 0.1,    ox: 0.1728, oy: 1.2875 },
+        rightFoot:     { frame: 'guinea_rightfoot',     scale: 0.1,    ox: 0.1728, oy: 1.2875 },
+        // ── Small atlas frames 951×519, scale 0.1175 ──────────────────────
+        head:          { frame: 'guinea_head',          scale: 0.1175, ox: 0.11328125,    oy: 0.35452103849597134 },
+        leftLeg:       { frame: 'guinea_leftleg',       scale: 0.1175, ox: 0.16015625,    oy: 0.5622202327663384  },
+        leftShin:      { frame: 'guinea_leftshin',      scale: 0.1175, ox: 0.193359375,   oy: 0.7341092211280215  },
+        rightLeg:      { frame: 'guinea_rightleg',      scale: 0.1175, ox: 0.06689453125, oy: 0.5380483437780662  },
+        rightShin:     { frame: 'guinea_rightshin',     scale: 0.1175, ox: 0.080078125,   oy: 0.7341092211280215  },
+    },
 };
 
-
-// ─────────────────────────────────────────────────────────────────────────────
 class GuineaPigHero extends Phaser.GameObjects.Container {
-
     constructor(scene, x, y) {
         super(scene, x, y);
         scene.add.existing(this);
+        this._idleTweens = [];
         this._buildPuppet();
     }
 
-    _buildPuppet() {
-        const C  = GUINEA_PIG_CONFIG;
-        const S  = C.SCALE_LARGE;
-        const sS = C.SCALE_SMALL;
-
-        // Offset so torso atlas-pivot lands at container (0,0)
-        const B_DX = -(C.TORSO_ORIGIN_X * 2816 * S);   // ≈ -110.8
-        const B_DY = -(C.TORSO_ORIGIN_Y * 1536 * S);   // ≈  -64.0
-
-        // ── Part factories ────────────────────────────────────────────────────
-
-        /**
-         * Large-canvas (2816×1536) sprite.
-         * dx/dy is the image top-left, in main-container space (torso-pivot-relative).
-         */
-        const mkL = (frame, dx = B_DX, dy = B_DY) =>
-            this.scene.make.image({ x: dx, y: dy, key: 'guineaparts', frame, add: false })
-                .setOrigin(0, 0)
-                .setScale(S);
-
-        /**
-         * Small-canvas (2048×1117) sprite.
-         * Origin set to the atlas pivot so the sprite rotates from its joint.
-         * Placed via NECK_X/NECK_Y or HIP_X/HIP_Y socket when inside a joint container.
-         */
-        const mkS = (frame, ox, oy) =>
-            this.scene.make.image({ x: 0, y: 0, key: 'guineaparts', frame, add: false })
-                .setOrigin(ox, oy)
-                .setScale(sS);
-
-        /** Empty joint container (no scene registration). */
-        const mkJoint = (x, y) => new Phaser.GameObjects.Container(this.scene, x, y);
-
-
-        // ═════════════════════════════════════════════════════════════════════
-        // HIERARCHY  (added to main container in back-to-front z-order)
-        // ─────────────────────────────────────────────────────────────────────
-        // Z-layer order:
-        //   1. Far  Leg  (left)   — back-most
-        //   2. Far  Arm  (left)
-        //   3. Torso  +  Head
-        //   4. Near Leg  (right)
-        //   5. Near Arm  (right)  — front-most
-        // ═════════════════════════════════════════════════════════════════════
-
-        // ── 1. Far (left / background) Leg ───────────────────────────────────
-        //   hipFar → legFar → kneeFar → shinFar → ankleFar → footFar
-        this.farLeg = mkJoint(0, 0);
-
-        const hipFar   = mkJoint(C.HIP_FAR_X,   C.HIP_FAR_Y);
-        const kneeFar  = mkJoint(C.KNEE_FAR_X,  C.KNEE_FAR_Y);
-        const ankleFar = mkJoint(C.ANKLE_FAR_X, C.ANKLE_FAR_Y);
-
-        const legFar  = mkS('guinea_leftleg',   328 / 2048, 628 / 1117);  // hip pivot
-        const shinFar = mkS('guinea_leftshin',  396 / 2048, 820 / 1117);  // knee pivot
-        // Foot is large-canvas — anchored at absolute position, not shin-local
-        const footFar = mkL('guinea_leftfoot',  C.FOOT_DX, C.FOOT_DY);
-
-        ankleFar.add(footFar);
-        kneeFar.add(shinFar);
-        kneeFar.add(ankleFar);
-        hipFar.add(legFar);
-        hipFar.add(kneeFar);
-        this.farLeg.add(hipFar);
-        this.add(this.farLeg);
-
-
-        // ── 2. Far (left / background) Arm ───────────────────────────────────
-        //   shoulderFar → elbowFar → wristFar
-        this.farArm = mkJoint(0, 0);
-
-        const shoulderFarJoint = mkJoint(C.SHOULDER_FAR_X, C.SHOULDER_FAR_Y);
-        const elbowFarJoint    = mkJoint(C.ELBOW_FAR_X,    C.ELBOW_FAR_Y);
-        const wristFarJoint    = mkJoint(C.WRIST_FAR_X,    C.WRIST_FAR_Y);
-
-        // Large-canvas arm parts: placed so their atlas pivots land at each joint
-        const shoulderFarImg = this.scene.make.image({
-            x: 0, y: 0, key: 'guineaparts', frame: 'guinea_leftshoulder', add: false
-        }).setOrigin(2290 / 2816, 170 / 1536).setScale(S);
-
-        const armFarImg = this.scene.make.image({
-            x: 0, y: 0, key: 'guineaparts', frame: 'guinea_leftarm', add: false
-        }).setOrigin(2478 / 2816, 433 / 1536).setScale(S);
-
-        const handFarImg = this.scene.make.image({
-            x: 0, y: 0, key: 'guineaparts', frame: 'guinea_lefthand', add: false
-        }).setOrigin(2647 / 2816, 621 / 1536).setScale(S);
-
-        wristFarJoint.add(handFarImg);
-        elbowFarJoint.add(armFarImg);
-        elbowFarJoint.add(wristFarJoint);
-        shoulderFarJoint.add(shoulderFarImg);
-        shoulderFarJoint.add(elbowFarJoint);
-        this.farArm.add(shoulderFarJoint);
-        this.add(this.farArm);
-
-
-        // ── 3. Torso — Head is a child of Torso ──────────────────────────────
-        this.torsoNode = mkJoint(0, 0);
-
-        this.torso = mkL('guinea_torso');   // placed so atlas-pivot = (0,0)
-        this.torsoNode.add(this.torso);
-
-        // Head: origin = chin/atlas-pivot; placed at neck socket
-        const headJoint = mkJoint(C.NECK_X, C.NECK_Y);
-        this.head = mkS('guinea_head', 232 / 2048, 396 / 1117);  // origin = chin
-        headJoint.add(this.head);
-        this.torsoNode.add(headJoint);
-
-        this.add(this.torsoNode);
-
-
-        // ── 4. Near (right / foreground) Leg ─────────────────────────────────
-        //   hipNear → legNear → kneeNear → shinNear → ankleNear → footNear
-        this.nearLeg = mkJoint(0, 0);
-
-        const hipNear   = mkJoint(C.HIP_NEAR_X,   C.HIP_NEAR_Y);
-        const kneeNear  = mkJoint(C.KNEE_NEAR_X,  C.KNEE_NEAR_Y);
-        const ankleNear = mkJoint(C.ANKLE_NEAR_X, C.ANKLE_NEAR_Y);
-
-        const legNear  = mkS('guinea_rightleg',  137 / 2048, 601 / 1117);  // hip pivot
-        const shinNear = mkS('guinea_rightshin', 164 / 2048, 820 / 1117);  // knee pivot
-        const footNear = mkL('guinea_rightfoot', C.FOOT_DX, C.FOOT_DY);
-
-        ankleNear.add(footNear);
-        kneeNear.add(shinNear);
-        kneeNear.add(ankleNear);
-        hipNear.add(legNear);
-        hipNear.add(kneeNear);
-        this.nearLeg.add(hipNear);
-        this.add(this.nearLeg);
-
-
-        // ── 5. Near (right / foreground) Arm ─────────────────────────────────
-        //   shoulderNear → elbowNear → wristNear
-        this.nearArm = mkJoint(0, 0);
-
-        const shoulderNearJoint = mkJoint(C.SHOULDER_NEAR_X, C.SHOULDER_NEAR_Y);
-        const elbowNearJoint    = mkJoint(C.ELBOW_NEAR_X,    C.ELBOW_NEAR_Y);
-        const wristNearJoint    = mkJoint(C.WRIST_NEAR_X,    C.WRIST_NEAR_Y);
-
-        const shoulderNearImg = this.scene.make.image({
-            x: 0, y: 0, key: 'guineaparts', frame: 'guinea_rightshoulder', add: false
-        }).setOrigin(1615 / 2816, 170 / 1536).setScale(S);
-
-        const armNearImg = this.scene.make.image({
-            x: 0, y: 0, key: 'guineaparts', frame: 'guinea_rightarm', add: false
-        }).setOrigin(1501 / 2816, 489 / 1536).setScale(S);
-
-        const handNearImg = this.scene.make.image({
-            x: 0, y: 0, key: 'guineaparts', frame: 'guinea_righthand', add: false
-        }).setOrigin(1727 / 2816, 621 / 1536).setScale(S);
-
-        wristNearJoint.add(handNearImg);
-        elbowNearJoint.add(armNearImg);
-        elbowNearJoint.add(wristNearJoint);
-        shoulderNearJoint.add(shoulderNearImg);
-        shoulderNearJoint.add(elbowNearJoint);
-        this.nearArm.add(shoulderNearJoint);
-        this.add(this.nearArm);
+    _makeJoint(x, y) {
+        return new Phaser.GameObjects.Container(this.scene, x, y);
     }
 
-    /**
-     * Flip the whole puppet to face a direction.
-     * @param {'left'|'right'} direction
-     */
+    _makePart(def) {
+        const img = this.scene.make.image({
+            x: 0, y: 0,
+            key: 'guineaparts',
+            frame: def.frame,
+            add: false,
+        });
+        img.setOrigin(def.ox, def.oy);
+        img.setScale(def.scale);
+        return img;
+    }
+
+    _buildPuppet() {
+        const jd = GUINEA_PIG_RIG.joints;
+        const pd = GUINEA_PIG_RIG.parts;
+
+        // All limbs sit LEFT of and ABOVE the torso anchor in canvas space.
+        // Visual figure centre is at Container-local (-72, -28).
+        // Offset torso joint so that Container (0,0) == visual centre.
+        const CX = 72, CY = 28;
+
+        // Create all joint containers
+        this.joints = {
+            torso:         this._makeJoint(CX, CY),
+            neck:          this._makeJoint(jd.neck.x,          jd.neck.y         ),
+            leftShoulder:  this._makeJoint(jd.leftShoulder.x,  jd.leftShoulder.y ),
+            leftElbow:     this._makeJoint(jd.leftElbow.x,     jd.leftElbow.y    ),
+            leftWrist:     this._makeJoint(jd.leftWrist.x,     jd.leftWrist.y    ),
+            rightShoulder: this._makeJoint(jd.rightShoulder.x, jd.rightShoulder.y),
+            rightElbow:    this._makeJoint(jd.rightElbow.x,    jd.rightElbow.y   ),
+            rightWrist:    this._makeJoint(jd.rightWrist.x,    jd.rightWrist.y   ),
+            leftHip:       this._makeJoint(jd.leftHip.x,       jd.leftHip.y      ),
+            leftKnee:      this._makeJoint(jd.leftKnee.x,      jd.leftKnee.y     ),
+            leftAnkle:     this._makeJoint(jd.leftAnkle.x,     jd.leftAnkle.y    ),
+            rightHip:      this._makeJoint(jd.rightHip.x,      jd.rightHip.y     ),
+            rightKnee:     this._makeJoint(jd.rightKnee.x,     jd.rightKnee.y    ),
+            rightAnkle:    this._makeJoint(jd.rightAnkle.x,    jd.rightAnkle.y   ),
+        };
+
+        // ── Arm chains ────────────────────────────────────────────────────
+        this.joints.leftWrist.add(this._makePart(pd.leftHand));
+        this.joints.leftElbow.add(this._makePart(pd.leftArm));
+        this.joints.leftElbow.add(this.joints.leftWrist);
+        this.joints.leftShoulder.add(this._makePart(pd.leftShoulder));
+        this.joints.leftShoulder.add(this.joints.leftElbow);
+
+        this.joints.rightWrist.add(this._makePart(pd.rightHand));
+        this.joints.rightElbow.add(this._makePart(pd.rightArm));
+        this.joints.rightElbow.add(this.joints.rightWrist);
+        this.joints.rightShoulder.add(this._makePart(pd.rightShoulder));
+        this.joints.rightShoulder.add(this.joints.rightElbow);
+
+        // ── Leg chains ────────────────────────────────────────────────────
+        this.joints.leftAnkle.add(this._makePart(pd.leftFoot));
+        this.joints.leftKnee.add(this._makePart(pd.leftShin));
+        this.joints.leftKnee.add(this.joints.leftAnkle);
+        this.joints.leftHip.add(this._makePart(pd.leftLeg));
+        this.joints.leftHip.add(this.joints.leftKnee);
+
+        this.joints.rightAnkle.add(this._makePart(pd.rightFoot));
+        this.joints.rightKnee.add(this._makePart(pd.rightShin));
+        this.joints.rightKnee.add(this.joints.rightAnkle);
+        this.joints.rightHip.add(this._makePart(pd.rightLeg));
+        this.joints.rightHip.add(this.joints.rightKnee);
+
+        // ── Head ──────────────────────────────────────────────────────────
+        this.joints.neck.add(this._makePart(pd.head));
+
+        // ── Assemble torso in layer order (back → front) ──────────────────
+        // layer 1: left legs (far side, behind torso)
+        this.joints.torso.add(this.joints.leftHip);
+        // layer 2: left arm (far side, behind torso)
+        this.joints.torso.add(this.joints.leftShoulder);
+        // layer 3: torso body
+        this.joints.torso.add(this._makePart(pd.torso));
+        // layer 4: head
+        this.joints.torso.add(this.joints.neck);
+        // layer 5: right legs (near side, in front)
+        this.joints.torso.add(this.joints.rightHip);
+        // layer 6: right arm (near side, in front)
+        this.joints.torso.add(this.joints.rightShoulder);
+
+        this.add(this.joints.torso);
+    }
+
+    playIdleMotion() {
+        this.stopIdleMotion();
+        const push = (joint, delta, duration, delay = 0) => {
+            if (!joint) return;
+            const rest = joint.rotation;
+            this._idleTweens.push(this.scene.tweens.add({
+                targets: joint,
+                rotation: rest + delta,
+                duration,
+                delay,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut',
+            }));
+        };
+
+        push(this.joints.torso,          0.03, 1700,   0);
+        push(this.joints.neck,          -0.05, 1600, 140);
+        push(this.joints.leftShoulder,   0.10, 1250,  40);
+        push(this.joints.leftElbow,      0.06, 1000, 120);
+        push(this.joints.rightShoulder, -0.08, 1250,  90);
+        push(this.joints.rightElbow,     0.06, 1000, 170);
+        push(this.joints.leftHip,        0.06, 1500, 100);
+        push(this.joints.rightHip,      -0.06, 1500, 220);
+    }
+
+    stopIdleMotion() {
+        for (const t of this._idleTweens) t.stop();
+        this._idleTweens = [];
+    }
+
     setFacing(direction) {
         this.setScale(direction === 'left' ? -1 : 1, 1);
     }

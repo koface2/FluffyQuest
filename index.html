@@ -53,14 +53,9 @@
 <body>
     <div id="score">Score: 0</div>
     <script>
-        const heroScript = document.createElement('script');
-        heroScript.src = `GuineaPigHero.js?v=${Date.now()}`;
-        heroScript.onload = () => {
-            const gameScript = document.createElement('script');
-            gameScript.src = `game.js?v=${Date.now()}`;
-            document.body.appendChild(gameScript);
-        };
-        document.body.appendChild(heroScript);
+        const gameScript = document.createElement('script');
+        gameScript.src = `game.js?v=${Date.now()}`;
+        document.body.appendChild(gameScript);
     </script>
 </body>
 </html>
