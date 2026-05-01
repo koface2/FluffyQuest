@@ -1,8 +1,8 @@
 const GRID_WIDTH = 7;
 const GRID_HEIGHT = 7;
-const TILE_SIZE = 50;
-const GRID_OFFSET_X = 20;
-const GRID_OFFSET_Y = 280;
+const TILE_SIZE = 46;
+const GRID_OFFSET_X = 34;
+const GRID_OFFSET_Y = 284;
 const FIGHT_PANEL_Y = 100;
 
 const TILE_TYPES = [
@@ -996,6 +996,19 @@ const TALENT_TREE_CONNECTIONS = [
 const TALENT_NODE_MAP = new Map();
 TALENT_TREE_NODES.forEach(n => TALENT_NODE_MAP.set(n.id, n));
 
+/** Returns { strength, dexterity, intelligence } summed from allocated talent nodes. */
+function getTalentFlatStats(allocatedTalents) {
+    let strength = 0, dexterity = 0, intelligence = 0;
+    (allocatedTalents || []).forEach(nodeId => {
+        const node = TALENT_NODE_MAP.get(nodeId);
+        if (!node) return;
+        if (node.stat === 'strength')     strength     += node.value;
+        if (node.stat === 'dexterity')    dexterity    += node.value;
+        if (node.stat === 'intelligence') intelligence += node.value;
+    });
+    return { strength, dexterity, intelligence };
+}
+
 // ---------------------------------------------------------------------------
 // Settings helpers — persist user preferences to localStorage
 // ---------------------------------------------------------------------------
@@ -1064,6 +1077,18 @@ function getSaveSlot(slotIndex) {
         const raw = localStorage.getItem(SAVE_KEY_PREFIX + slotIndex);
         return raw ? JSON.parse(raw) : null;
     } catch (e) { return null; }
+}
+
+/** Returns 'warrior', 'wizard', or 'ranger' based on the player's highest stat.
+ *  Pass optional gearTotals to include equipped-gear bonuses. Ties default to 'warrior'. */
+function getHeroClassFromPlayer(player, gearTotals) {
+    const g = gearTotals || {};
+    const str = ((player && player.strength) || 0) + (g.strength || 0);
+    const int = ((player && player.intelligence) || 0) + (g.intelligence || 0);
+    const dex = ((player && player.dexterity) || 0) + (g.dexterity || 0);
+    if (str >= int && str >= dex) return 'warrior';
+    if (int > dex) return 'wizard';
+    return 'ranger';
 }
 
 function writeSaveSlot(slotIndex, data) {
@@ -1449,7 +1474,7 @@ class Match3Scene extends Phaser.Scene {
             this.updatePlayerUI();
             // Check for death caused by thorns reflection
             if (this.player.health <= 0) {
-                if (this.playerSprite) this.playerSprite.play('warrior_death');
+                if (this.playerSprite) this.playerSprite.play(this.getPlayerHeroClass() + '_death');
                 this.isSwapping = true;
                 this.time.delayedCall(900, () => this.showDeathScreen(enemy.name + ' (Thorns)'));
             }
@@ -1956,6 +1981,18 @@ class Match3Scene extends Phaser.Scene {
         this.anims.create({ key: 'warrior_attack', frames: this.anims.generateFrameNumbers('warrior', { start: 6, end: 11 }), frameRate: 14, repeat: 0 });
         this.anims.create({ key: 'warrior_hit', frames: this.anims.generateFrameNumbers('warrior', { start: 12, end: 17 }), frameRate: 12, repeat: 0 });
         this.anims.create({ key: 'warrior_death', frames: this.anims.generateFrameNumbers('warrior', { start: 18, end: 23 }), frameRate: 8, repeat: 0 });
+
+        // --- Ranger sprite animations (row 0=idle, 1=attack, 2=hit, 3=death) ---
+        this.anims.create({ key: 'ranger_idle', frames: this.anims.generateFrameNumbers('ranger', { start: 0, end: 5 }), frameRate: 5, repeat: -1 });
+        this.anims.create({ key: 'ranger_attack', frames: this.anims.generateFrameNumbers('ranger', { start: 6, end: 11 }), frameRate: 14, repeat: 0 });
+        this.anims.create({ key: 'ranger_hit', frames: this.anims.generateFrameNumbers('ranger', { start: 12, end: 17 }), frameRate: 12, repeat: 0 });
+        this.anims.create({ key: 'ranger_death', frames: this.anims.generateFrameNumbers('ranger', { start: 18, end: 23 }), frameRate: 8, repeat: 0 });
+
+        // --- Wizard sprite animations (row 0=idle, 1=attack, 2=hit, 3=death) ---
+        this.anims.create({ key: 'wizard_idle', frames: this.anims.generateFrameNumbers('wizard', { start: 0, end: 5 }), frameRate: 5, repeat: -1 });
+        this.anims.create({ key: 'wizard_attack', frames: this.anims.generateFrameNumbers('wizard', { start: 6, end: 11 }), frameRate: 14, repeat: 0 });
+        this.anims.create({ key: 'wizard_hit', frames: this.anims.generateFrameNumbers('wizard', { start: 12, end: 17 }), frameRate: 12, repeat: 0 });
+        this.anims.create({ key: 'wizard_death', frames: this.anims.generateFrameNumbers('wizard', { start: 18, end: 23 }), frameRate: 8, repeat: 0 });
 
         // --- Red Squirrel sprite animations (row 0=idle, 1=attack, 2=hit, 3=death) ---
         this.anims.create({ key: 'redsquirrel_idle', frames: this.anims.generateFrameNumbers('redsquirrel', { start: 0, end: 5 }), frameRate: 3, repeat: -1 });
@@ -4461,16 +4498,16 @@ class Match3Scene extends Phaser.Scene {
 
     createCombatLog() {
         // Compact strip between nav buttons and grid — shows latest message, tap to open full log
-        const strip = this.add.rectangle(195, 255, 386, 22, 0x111111, 0.9)
+        const strip = this.add.rectangle(195, 268, 386, 22, 0x111111, 0.9)
             .setOrigin(0.5)
             .setInteractive({ useHandCursor: true })
             .on('pointerup', () => this.showCombatLogPopup());
         this.hudContainer.add(strip);
 
-        const icon = this.add.text(376, 248, '📜', { fontSize: '12px' }).setOrigin(1, 0);
+        const icon = this.add.text(376, 261, '📜', { fontSize: '12px' }).setOrigin(1, 0);
         this.hudContainer.add(icon);
 
-        this.combatLogLatestText = this.add.text(10, 248, '', {
+        this.combatLogLatestText = this.add.text(10, 261, '', {
             fontSize: '11px', color: '#aaffcc', fontStyle: 'bold',
             wordWrap: { width: 340 }
         });
@@ -4908,9 +4945,10 @@ class Match3Scene extends Phaser.Scene {
 
     getCharacterStatBonuses() {
         const gear = this.getEquippedStatTotals();
-        const str = this.player.strength + (gear.strength || 0);
-        const int = this.player.intelligence + (gear.intelligence || 0);
-        const dex = this.player.dexterity + (gear.dexterity || 0);
+        const talent = getTalentFlatStats(this.allocatedTalents);
+        const str = this.player.strength + (gear.strength || 0) + talent.strength;
+        const int = this.player.intelligence + (gear.intelligence || 0) + talent.intelligence;
+        const dex = this.player.dexterity + (gear.dexterity || 0) + talent.dexterity;
         return {
             physicalDamageBonus: Math.floor(str / 2),
             armorBonus: Math.floor(str / 5),
@@ -5551,24 +5589,52 @@ class Match3Scene extends Phaser.Scene {
             this.player.equipment.offhand = 'Occupied by Bow';
             this.equippedItems.offhand = null;
         }
+        this.refreshPlayerSprite();
     }
 
     clearEquippedSlot(slotKey) {
         this.equippedItems[slotKey] = null;
         this.player.equipment[slotKey] = 'None';
+        this.refreshPlayerSprite();
     }
 
-    /** Play the warrior sprite attack animation, then return to idle. */
+    /** Returns 'warrior', 'wizard', or 'ranger' factoring in base stats + equipped gear + talent tree. */
+    getPlayerHeroClass() {
+        const gear = this.getEquippedStatTotals();
+        const talent = getTalentFlatStats(this.allocatedTalents);
+        const combined = Object.assign({}, gear);
+        combined.strength     = (gear.strength     || 0) + talent.strength;
+        combined.dexterity    = (gear.dexterity    || 0) + talent.dexterity;
+        combined.intelligence = (gear.intelligence || 0) + talent.intelligence;
+        return getHeroClassFromPlayer(this.player, combined);
+    }
+
+    /** Swap playerSprite texture/scale/animation if the hero class has changed. */
+    refreshPlayerSprite() {
+        if (!this.playerSprite) return;
+        const heroClass = this.getPlayerHeroClass();
+        if (this.playerSprite.texture.key !== heroClass) {
+            this.playerSprite.setTexture(heroClass);
+            if (heroClass === 'warrior') {
+                this.playerSprite.setScale(1.3);
+            } else {
+                this.playerSprite.setDisplaySize(201, 165);
+            }
+            this.playerSprite.play(heroClass + '_idle');
+        }
+    }
+
+    /** Play the player sprite attack animation, then return to idle. */
     playPlayerAttackAnim() {
         if (!this.playerSprite) return;
-        this.playerSprite.play('warrior_attack');
+        this.playerSprite.play(this.getPlayerHeroClass() + '_attack');
     }
 
-    /** Play the warrior sprite hit animation, then return to idle. */
+    /** Play the player sprite hit animation, then return to idle. */
     playPlayerHitAnim() {
         if (!this.playerSprite) return;
         if (this.player.health <= 0) return;  // Don't override death animation
-        this.playerSprite.play('warrior_hit');
+        this.playerSprite.play(this.getPlayerHeroClass() + '_hit');
         // Flash tint
         this.playerSprite.setTint(0xff4444);
         this.time.delayedCall(200, () => {
@@ -5616,13 +5682,18 @@ class Match3Scene extends Phaser.Scene {
 
         // --- Player panel (left) ---
         this.hudContainer.add(this.add.rectangle(leftCX, panelH / 2 + 22, panelW, panelH, 0x111111, 0.9).setOrigin(0.5));
-        // Sprite-based player character
-        this.playerSprite = this.add.sprite(leftCX, 115, 'warrior').setOrigin(0.5, 0.5);
-        this.playerSprite.setScale(1.3);
-        this.playerSprite.play('warrior_idle');
+        // Sprite-based player character — class determined by highest stat
+        const heroClass = this.getPlayerHeroClass();
+        this.playerSprite = this.add.sprite(leftCX, 115, heroClass).setOrigin(0.5, 0.5);
+        if (heroClass === 'warrior') {
+            this.playerSprite.setScale(1.3);
+        } else {
+            this.playerSprite.setDisplaySize(201, 165);
+        }
+        this.playerSprite.play(heroClass + '_idle');
         this.playerSprite.on('animationcomplete', (anim) => {
             if (!anim.key.endsWith('_idle') && !anim.key.endsWith('_death') && this.playerSprite && this.playerSprite.active) {
-                this.playerSprite.play('warrior_idle');
+                this.playerSprite.play(this.getPlayerHeroClass() + '_idle');
             }
         });
         this.hudContainer.add(this.playerSprite);
@@ -6073,7 +6144,7 @@ class Match3Scene extends Phaser.Scene {
 
     startNextBattle() {
         // After the third battle, trigger the bunny rescue cutscene (first loop only)
-        if (this.battleNumber === 3 && !getRescuedBunny()) {
+        if (!this.devMode && this.battleNumber === 3 && !getRescuedBunny()) {
             setRescuedBunny(true);
             this.battleNumber += 1;
             if (this.player && typeof this.player.level === 'number') {
@@ -6085,7 +6156,7 @@ class Match3Scene extends Phaser.Scene {
         }
 
         // After the seventh battle (first guinea lich defeat), trigger the fox rescue cutscene
-        if (this.battleNumber === 7 && !getRescuedFox()) {
+        if (!this.devMode && this.battleNumber === 7 && !getRescuedFox()) {
             setRescuedFox(true);
             this.battleNumber += 1;
             if (this.player && typeof this.player.level === 'number') {
@@ -8152,7 +8223,7 @@ class Match3Scene extends Phaser.Scene {
     createSettingsButton() {
         const W = this.sys.game.config.width;
         const btnX = W - 18;
-        const btnY = 18;
+        const btnY = 38;  // below the 22px top gold bar
         this.settingsBtnBg = this.add.circle(btnX, btnY, 15, 0x1e1e2e, 0.88)
             .setDepth(8500)
             .setStrokeStyle(1.5, 0x8877cc)
@@ -8289,6 +8360,8 @@ class Match3Scene extends Phaser.Scene {
     // -------------------------------------------------------------------------
 
     initTutorials() {
+        // Skip all tutorials in dev mode
+        if (this.devMode) return;
         // Show the first tutorial after a short delay to let the battle start.
         // If skill gems are unlocked, chain the second tutorial as an onDismiss
         // callback so the player must read the first before seeing the second.
@@ -8314,8 +8387,8 @@ class Match3Scene extends Phaser.Scene {
     }
 
     showTutorialPopup(id, message, onDismiss) {
-        // Skip if tutorials are off or this one was already seen
-        if (!getGameSettings().tutorialsEnabled || isTutorialSeen(id)) {
+        // Skip in dev mode or if tutorials are off or this one was already seen
+        if (this.devMode || !getGameSettings().tutorialsEnabled || isTutorialSeen(id)) {
             if (onDismiss) onDismiss();
             return;
         }
@@ -10186,7 +10259,7 @@ class Match3Scene extends Phaser.Scene {
             this.addCombatLog(`\u2620\ufe0f ${enemy.name}'s Cursed Aura deals ${curseDmg} dark damage!`, '#44ff66');
             this.updatePlayerUI();
             if (this.player.health <= 0) {
-                if (this.playerSprite) this.playerSprite.play('warrior_death');
+                if (this.playerSprite) this.playerSprite.play(this.getPlayerHeroClass() + '_death');
                 this.isSwapping = true;
                 this.time.delayedCall(900, () => this.showDeathScreen(enemy.name + ' (Cursed Aura)'));
                 return;
@@ -10325,7 +10398,7 @@ class Match3Scene extends Phaser.Scene {
         this.updatePlayerUI();
         if (this.player.health <= 0) {
             if (this.playerSprite) {
-                this.playerSprite.play('warrior_death');
+                this.playerSprite.play(this.getPlayerHeroClass() + '_death');
             }
             this.isSwapping = true;
             this.time.delayedCall(900, () => this.showDeathScreen(enemy.name));
@@ -10554,7 +10627,8 @@ class LoadScreen extends Phaser.Scene {
         });
 
         // Load ALL game assets here
-        TILE_TYPES.forEach(t => {
+        // Skip special tile types — they have their own dedicated texture keys loaded below.
+        TILE_TYPES.filter(t => !t.special).forEach(t => {
             this.load.image('tile_' + t.name, 'assets/' + t.name + '.png');
         });
         // Shopkeeper image
@@ -10562,6 +10636,14 @@ class LoadScreen extends Phaser.Scene {
         this.load.spritesheet('warrior', 'assets/sprites/warrior_anim.png', {
             frameWidth: 155,
             frameHeight: 130
+        });
+        this.load.spritesheet('ranger', 'assets/sprites/rangersheet.png', {
+            frameWidth: 341,
+            frameHeight: 279
+        });
+        this.load.spritesheet('wizard', 'assets/sprites/wizardsheet.png', {
+            frameWidth: 341,
+            frameHeight: 279
         });
         this.load.spritesheet('redsquirrel', 'assets/sprites/redsquirrel_anim.png', {
             frameWidth: 155,
@@ -10656,11 +10738,20 @@ class LoadScreen extends Phaser.Scene {
 class TownScene extends Phaser.Scene {
     constructor() {
         super('TownScene');
+        this.gemGiftRefreshTimer = null;
     }
 
     create() {
         const W = this.sys.game.config.width;
         const H = this.sys.game.config.height;
+
+        // Prevent delayed callbacks from prior popup flows from firing after scene switches.
+        this.events.once('shutdown', () => {
+            if (this.gemGiftRefreshTimer) {
+                this.gemGiftRefreshTimer.remove(false);
+                this.gemGiftRefreshTimer = null;
+            }
+        });
 
         // Music — respect settings
         this.sound.stopAll();
@@ -10692,15 +10783,27 @@ class TownScene extends Phaser.Scene {
         // Warrior stands just above the "Enter the Forest" button (btnY = H - 100, btnH = 54)
         const heroY = H - 100 - 27 - 10;  // button top minus small gap
 
-        // Warrior hero sprite — same animation as in combat
-        if (!this.anims.exists('warrior_idle')) {
-            this.anims.create({ key: 'warrior_idle', frames: this.anims.generateFrameNumbers('warrior', { start: 0, end: 5 }), frameRate: 5, repeat: -1 });
+        // Hero sprite — class determined by highest stat, same animation as in combat
+        const townTalentStats = getTalentFlatStats(save ? (save.allocatedTalents || []) : []);
+        const townHeroClass = getHeroClassFromPlayer(save && save.player ? save.player : null, townTalentStats);
+        if (!this.anims.exists(townHeroClass + '_idle')) {
+            if (townHeroClass === 'ranger') {
+                this.anims.create({ key: 'ranger_idle', frames: this.anims.generateFrameNumbers('ranger', { start: 0, end: 5 }), frameRate: 5, repeat: -1 });
+            } else if (townHeroClass === 'wizard') {
+                this.anims.create({ key: 'wizard_idle', frames: this.anims.generateFrameNumbers('wizard', { start: 0, end: 5 }), frameRate: 5, repeat: -1 });
+            } else {
+                this.anims.create({ key: 'warrior_idle', frames: this.anims.generateFrameNumbers('warrior', { start: 0, end: 5 }), frameRate: 5, repeat: -1 });
+            }
         }
-        const townHero = this.add.sprite(Math.round(W / 2), heroY, 'warrior')
+        const townHero = this.add.sprite(Math.round(W / 2), heroY, townHeroClass)
             .setOrigin(0.5, 1.0)
-            .setScale(0.9)
             .setDepth(10);
-        townHero.play('warrior_idle');
+        if (townHeroClass === 'warrior') {
+            townHero.setScale(0.9);
+        } else {
+            townHero.setDisplaySize(Math.round(155 * 0.9), Math.round(130 * 0.9));
+        }
+        townHero.play(townHeroClass + '_idle');
 
         // Thought bubble — only shown while Clover has not yet been rescued
         if (!getRescuedBunny()) {
@@ -10820,13 +10923,21 @@ class TownScene extends Phaser.Scene {
             stroke: '#000000', strokeThickness: 3
         }).setOrigin(0.5);
 
+        const startForestRun = (devMode) => {
+            if (this.gemGiftRefreshTimer) {
+                this.gemGiftRefreshTimer.remove(false);
+                this.gemGiftRefreshTimer = null;
+            }
+            this.scene.start('Match3Scene', { devMode: !!devMode });
+        };
+
         btnBg.on('pointerover', () => btnBg.setFillStyle(0x2d6e2d));
         btnBg.on('pointerout',  () => btnBg.setFillStyle(0x1a4d1a));
-        btnBg.on('pointerup',   () => this.scene.start('Match3Scene', { devMode: false }));
+        btnBg.on('pointerup',   () => startForestRun(false));
 
-        // Dev Mode button — shifted left to make room for the settings button
+        // Dev Mode button — below the top gold bar (bar ends at y=22)
         const devBtnCX = W - 96;
-        const devBtnCY = 20;
+        const devBtnCY = 38;
         const devBtnBg = this.add.rectangle(devBtnCX, devBtnCY, 82, 28, 0x1a0028, 0.90)
             .setStrokeStyle(1, 0xbb44ff)
             .setInteractive({ useHandCursor: true });
@@ -10836,14 +10947,14 @@ class TownScene extends Phaser.Scene {
         }).setOrigin(0.5);
         devBtnBg.on('pointerover', () => devBtnBg.setFillStyle(0x330044));
         devBtnBg.on('pointerout',  () => devBtnBg.setFillStyle(0x1a0028));
-        devBtnBg.on('pointerup',   () => this.scene.start('Match3Scene', { devMode: true }));
+        devBtnBg.on('pointerup',   () => startForestRun(true));
 
-        // Settings button — top-right corner (⚙️)
-        const settingsBtnBg = this.add.circle(W - 18, 18, 15, 0x1e1e2e, 0.88)
+        // Settings button — top-right corner (⚙️), below the top gold bar
+        const settingsBtnBg = this.add.circle(W - 18, 38, 15, 0x1e1e2e, 0.88)
             .setDepth(100)
             .setStrokeStyle(1.5, 0x8877cc)
             .setInteractive({ useHandCursor: true });
-        this.add.text(W - 18, 18, '⚙️', { fontSize: '14px' }).setOrigin(0.5).setDepth(101);
+        this.add.text(W - 18, 38, '⚙️', { fontSize: '14px' }).setOrigin(0.5).setDepth(101);
         settingsBtnBg.on('pointerover', () => settingsBtnBg.setFillStyle(0x44446e, 0.95));
         settingsBtnBg.on('pointerout',  () => settingsBtnBg.setFillStyle(0x1e1e2e, 0.88));
         settingsBtnBg.on('pointerup',   () => settingsMenu.setVisible(true));
@@ -11208,7 +11319,14 @@ class TownScene extends Phaser.Scene {
                     });
                 }
             });
-            this.time.delayedCall(2200, () => this.scene.restart());
+            if (this.gemGiftRefreshTimer) {
+                this.gemGiftRefreshTimer.remove(false);
+                this.gemGiftRefreshTimer = null;
+            }
+            this.gemGiftRefreshTimer = this.time.delayedCall(2200, () => {
+                this.gemGiftRefreshTimer = null;
+                if (this.sys.isActive()) this.scene.restart();
+            });
         };
     }
 
@@ -11839,7 +11957,11 @@ const config = {
     render: {
         antialias: true,
         pixelArt: false,
-        roundPixels: true
+        roundPixels: true,
+        // Request the high-performance GPU power mode on mobile devices.
+        // This keeps the GPU running at full speed during gameplay instead
+        // of throttling to the power-saving tier.
+        powerPreference: 'high-performance'
     },
     scale: {
         mode: Phaser.Scale.FIT,
@@ -11848,6 +11970,8 @@ const config = {
     input: {
         activePointers: 2
     },
+    // Disable the default Phaser banner so the console stays clean in prod.
+    banner: false,
     scene: [BootScene, LoadScreen, SaveSelectScene, TownScene, Match3Scene, DialogueScene]
 };
 

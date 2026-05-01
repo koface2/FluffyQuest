@@ -6,7 +6,17 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Match-3 RPG</title>
+    <meta name="theme-color" content="#2c3e50">
+    <title>FluffyQuest</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="icons/icon-192.png" type="image/png">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <!-- Preload business-critical assets to reduce first-paint latency -->
+    <link rel="preload" href="phaser.min.js" as="script">
+    <link rel="preload" href="game.js?v=1.0.0" as="script">
+    <link rel="preload" href="assets/Screens/Load Screen.jpg" as="image">
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self';">
     <script>
         // Polyfill for Performance User Timing API — required by Phaser 3.55 in some
         // browser/WebView environments where performance.now exists but mark/clearMarks do not.
@@ -24,8 +34,18 @@
                 window.mgt.clearMarks = function () {};
             }
         }());
+
+        // Register service worker for offline caching / Play Store TWA support
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('sw.js').catch(function (err) {
+                    console.warn('SW registration failed:', err);
+                });
+            });
+        }
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+    <!-- Phaser served locally — no CDN dependency; works offline in TWA -->
+    <script src="phaser.min.js"></script>
     <style>
         *, *::before, *::after { box-sizing: border-box; }
         html, body {
@@ -52,10 +72,8 @@
 </head>
 <body>
     <div id="score">Score: 0</div>
-    <script>
-        const gameScript = document.createElement('script');
-        gameScript.src = `game.js?v=${Date.now()}`;
-        document.body.appendChild(gameScript);
-    </script>
+    <!-- Static version string — bump to v=1.0.1 etc. on each deployment
+         so browsers pick up the new file while still caching between visits. -->
+    <script src="game.js?v=1.0.0" defer></script>
 </body>
 </html>

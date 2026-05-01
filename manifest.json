@@ -1,0 +1,28 @@
+{
+  "name": "FluffyQuest",
+  "short_name": "FluffyQuest",
+  "description": "A match-3 RPG adventure with fluffy guinea pig heroes!",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#2c3e50",
+  "background_color": "#111111",
+  "categories": ["games"],
+  "lang": "en",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "prefer_related_applications": false
+}

@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="object-src 'none'; base-uri 'self'; connect-src 'none';">
 <title>Match3RPG – Automated Tests</title>
 <style>
   body { font-family: monospace; background: #1e1e1e; color: #ccc; padding: 20px; }
@@ -20,11 +21,19 @@
 const _out = document.getElementById('output');
 let _passed = 0, _failed = 0, _errors = [];
 
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 function log(html) { _out.innerHTML += html + '\n'; }
-function section(name) { log(`<span class="section">▸ ${name}</span>`); }
+function section(name) { log(`<span class="section">▸ ${escapeHtml(name)}</span>`); }
 function assert(desc, cond) {
-  if (cond) { _passed++; log(`  <span class="pass">✓</span> ${desc}`); }
-  else      { _failed++; _errors.push(desc); log(`  <span class="fail">✗</span> ${desc}`); }
+  if (cond) { _passed++; log(`  <span class="pass">✓</span> ${escapeHtml(desc)}`); }
+  else      { _failed++; _errors.push(desc); log(`  <span class="fail">✗</span> ${escapeHtml(desc)}`); }
 }
 function assertEq(desc, actual, expected) {
   assert(`${desc}  (got ${JSON.stringify(actual)}, want ${JSON.stringify(expected)})`, actual === expected);
@@ -36,7 +45,7 @@ function assertApprox(desc, actual, expected, tol) {
 function summary() {
   const cls = _failed ? 'fail' : 'pass';
   log(`<div class="summary"><span class="${cls}">${_passed} passed, ${_failed} failed</span></div>`);
-  if (_errors.length) { log('<b>Failures:</b>'); _errors.forEach(e => log(`  • ${e}`)); }
+  if (_errors.length) { log('<b>Failures:</b>'); _errors.forEach(e => log(`  • ${escapeHtml(e)}`)); }
 }
 </script>
 
@@ -631,7 +640,7 @@ section('TALENT_NODE_MAP – prereqs reference valid nodes');
     }
   });
   assert(`All prereq IDs are valid (${broken.length} broken)`, broken.length === 0);
-  if (broken.length > 0) broken.slice(0, 5).forEach(b => log(`    ${b}`));
+  if (broken.length > 0) broken.slice(0, 5).forEach(b => log(`    ${escapeHtml(b)}`));
 })();
 
 // ─────────────────────────────────────────────────────────────────────────

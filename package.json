@@ -1,5 +1,16 @@
 {
+  "name": "fluffyquest",
+  "version": "1.0.0",
+  "description": "FluffyQuest — a match-3 RPG with fluffy guinea pig heroes",
+  "private": true,
+  "scripts": {
+    "build:guinea-puppet": "node scripts/build-guinea-puppet.js",
+    "compress:assets": "pngquant --force --quality=65-85 --speed 1 --ext .png assets/**/*.png assets/*.png",
+    "deploy:ghpages": "git push origin main:gh-pages",
+    "serve": "npx serve . -l 8080"
+  },
   "devDependencies": {
     "pngjs": "^7.0.0"
   }
 }
+
