@@ -17,7 +17,7 @@ const TILE_TYPES = [
     { name: 'flame', color: 0xff6600, icon: '🔥', effect: 'flame', special: true, textureKey: 'special_flame' },
 ];
 
-const MONSTER_NAMES = ['Kobold', 'Goblin', 'Orc', 'Troll', 'Warlock', 'Skeleton', 'Lich', 'Bandit'];
+const MONSTER_NAMES = ['Kobold', 'Goblin', 'Orc', 'Troll', 'Warlock', 'Skeleton', 'Lich', 'Bandit', 'Devil'];
 
 const MONSTER_BODIES = [
     // Red Squirrel (index 0)
@@ -44,7 +44,11 @@ const MONSTER_BODIES = [
       innate: [{ id: 'cursedAura', icon: '☠️', name: 'Cursed Aura', desc: 'Radiates dark energy that saps the hero\'s life force each turn.' }] },
     // Raccoon Bandit (index 7)
     { spriteKey: 'raccoonbandit', spriteDisplayW: 155, spriteDisplayH: 130, spriteOriginX: 0.62,
-      innate: [{ id: 'goldTheft', icon: '🪙', name: 'Pickpocket', desc: 'Steals 5% of the hero\'s gold each time it attacks.' }] }
+      innate: [{ id: 'goldTheft', icon: '🪙', name: 'Pickpocket', desc: 'Steals 5% of the hero\'s gold each time it attacks.' }] },
+    // Devil Worm — second boss (index 8)
+    { spriteKey: 'devil', isBoss: true, flipX: true,
+      spriteOriginY: 1, spritePosYOffset: 84, spriteDisplayW: 190, spriteDisplayH: 155,
+      innate: [{ id: 'infernalBlaze', icon: '🔥', name: 'Infernal Blaze', desc: 'Scorches the hero with hellfire each attack, dealing fire damage that bypasses armour.' }] }
 ];
 
 const ITEM_RARITIES = [
@@ -1287,6 +1291,12 @@ class Match3Scene extends Phaser.Scene {
         this.cloakOfFlamesDamage = 0;
         this.purchasedGemIds    = [];
         this.skillsInventoryGems = this.createSkillGemInventoryPool();
+        if (this.devMode) {
+            this.skillsInventoryGems = [
+                ...ACTIVE_SKILL_GEMS.map(g => ({ type: 'active', id: g.id })),
+                ...SUPPORT_SKILL_GEMS.map(g => ({ type: 'support', id: g.id }))
+            ];
+        }
         this.generateStoreInventory();
         // Reset state flags that persist across scene.restart()
         this.isSwapping = false;
@@ -1566,6 +1576,7 @@ class Match3Scene extends Phaser.Scene {
         if (this.enemyInfoPopup) this.enemyInfoPopup.setVisible(false);
         if (this.enemyInfoPopupSpriteRef) { this.enemyInfoPopupSpriteRef.destroy(); this.enemyInfoPopupSpriteRef = null; }
         this.enemies.forEach(enemy => {
+            if (enemy.particleTimer) { enemy.particleTimer.remove(false); enemy.particleTimer = null; }
             if (enemy.enemySprite) enemy.enemySprite.destroy();
             if (enemy.healthBar) enemy.healthBar.destroy();
             if (enemy.healthBarBg) enemy.healthBarBg.destroy();
@@ -1598,11 +1609,11 @@ class Match3Scene extends Phaser.Scene {
             else if (battleNumber === 4 && i === 0) monsterIndex = 3;
             else if (battleNumber === 5 && i === 0) monsterIndex = 4;
             else if (battleNumber === 6 && i === 0) monsterIndex = 5;
-            else if (isBossBattle && i === 0)       monsterIndex = 6;
+            else if (isBossBattle && i === 0)       monsterIndex = (battleNumber % 14 === 0) ? 8 : 6;
             else {
-                // Pick from non-boss pool: all indices except 6 (Guinea Pig Lich)
-                // Roll 0..(length-2), then skip over index 6 by shifting up
-                let roll = Phaser.Math.Between(0, MONSTER_BODIES.length - 2);
+                // Pick from non-boss pool: all indices except 6 (Guinea Pig Lich) and 8 (Devil)
+                // Roll 0..(length-3), then skip index 6 by shifting up (index 8 is unreachable)
+                let roll = Phaser.Math.Between(0, MONSTER_BODIES.length - 3);
                 if (roll >= 6) roll++;
                 monsterIndex = roll;
             }
@@ -1611,10 +1622,11 @@ class Match3Scene extends Phaser.Scene {
             const baseName = MONSTER_NAMES[monsterIndex];
             const bodyCfg = MONSTER_BODIES[monsterIndex];
 
-            // Roll rarity — first boss encounter (battle 7) is Normal; subsequent Lich appearances escalate through Magic/Rare/Legendary; battle 1 always Normal for tutorial
+            // Roll rarity — first boss encounter (battle 7) is Normal; battle 14 Devil is Normal;
+            // subsequent bosses escalate: 21=Rare, 28=Legendary, etc.
             const rarity = bodyCfg.isBoss
                 ? (battleNumber === 7  ? ENEMY_RARITIES[0]
-                :  battleNumber === 14 ? ENEMY_RARITIES[1]
+                :  battleNumber === 14 ? ENEMY_RARITIES[0]
                 :  battleNumber === 21 ? ENEMY_RARITIES[2]
                 :                        ENEMY_RARITIES[3])
                 : (battleNumber === 1) ? ENEMY_RARITIES[0] : this.rollEnemyRarity(battleNumber);
@@ -1646,6 +1658,7 @@ class Match3Scene extends Phaser.Scene {
                     enemySprite.setScale(pos.scale * 0.95);
                 }
                 enemySprite.play(bodyCfg.spriteKey + '_idle');
+                if (bodyCfg.flipX) enemySprite.setFlipX(true);
                 // Persistent fallback: any non-looping animation always returns to idle
                 const _sk = bodyCfg.spriteKey;
                 enemySprite.on('animationcomplete', (anim) => {
@@ -1727,8 +1740,23 @@ class Match3Scene extends Phaser.Scene {
                 nameText: nameLabel,
                 targetMarker: marker,
                 alive: true,
-                pos: pos
+                pos: pos,
+                particleTimer: null
             });
+
+            // Devil boss: start ambient fire particle emitter around the sprite
+            if (bodyCfg.isBoss && bodyCfg.spriteKey === 'devil' && enemySprite) {
+                const devilEnemy = this.enemies[this.enemies.length - 1];
+                const fireTimer = this.time.addEvent({
+                    delay: 350,
+                    repeat: -1,
+                    callback: () => {
+                        if (!devilEnemy.alive || !enemySprite.active) return;
+                        this.spawnDevilFireParticles(devilEnemy, enemySprite);
+                    }
+                });
+                devilEnemy.particleTimer = fireTimer;
+            }
         }
 
         this.updateEnemyTargetMarkers();
@@ -2037,6 +2065,13 @@ class Match3Scene extends Phaser.Scene {
         this.anims.create({ key: 'guineapiglich_attack', frames: this.anims.generateFrameNumbers('guineapiglich', { start: 11, end: 6 }), frameRate: 7, repeat: 0 });
         this.anims.create({ key: 'guineapiglich_hit', frames: this.anims.generateFrameNumbers('guineapiglich', { start: 17, end: 12 }), frameRate: 6, repeat: 0 });
         this.anims.create({ key: 'guineapiglich_death', frames: this.anims.generateFrameNumbers('guineapiglich', { start: 23, end: 18 }), frameRate: 5, repeat: 0 });
+
+        // Devil Worm boss animations (flipped to face hero via sprite.setFlipX)
+        // Row 0=idle (0→5), Row 1=attack with fire (6→11), Row 2=hit (12→17), Row 3=death/explosion (18→23)
+        this.anims.create({ key: 'devil_idle', frames: this.anims.generateFrameNumbers('devil', { start: 0, end: 5 }), frameRate: 4, repeat: -1 });
+        this.anims.create({ key: 'devil_attack', frames: this.anims.generateFrameNumbers('devil', { start: 6, end: 11 }), frameRate: 10, repeat: 0 });
+        this.anims.create({ key: 'devil_hit', frames: this.anims.generateFrameNumbers('devil', { start: 12, end: 17 }), frameRate: 8, repeat: 0 });
+        this.anims.create({ key: 'devil_death', frames: this.anims.generateFrameNumbers('devil', { start: 18, end: 23 }), frameRate: 6, repeat: 0 });
 
         // Raccoon Bandit animations (forward frame order: row 0=idle, 1=attack, 2=hit, 3=death)
         this.anims.create({ key: 'raccoonbandit_idle', frames: this.anims.generateFrameNumbers('raccoonbandit', { start: 0, end: 5 }), frameRate: 3, repeat: -1 });
@@ -3498,6 +3533,65 @@ class Match3Scene extends Phaser.Scene {
                 duration: 620,
                 ease: 'Quad.easeOut',
                 onComplete: () => emb.destroy()
+            });
+        }
+    }
+
+    /** Devil boss ambient fire: floating fire orbs that drift upward from the sprite. */
+    spawnDevilFireParticles(enemy, sprite) {
+        const FIRE_COLORS = [0xff4400, 0xff8800, 0xffcc00, 0xff2200, 0xff6600];
+        const count = Phaser.Math.Between(2, 4);
+        const baseX = sprite ? sprite.x : enemy.pos.x;
+        const baseY = sprite ? sprite.y : enemy.pos.y;
+        for (let i = 0; i < count; i++) {
+            const color = Phaser.Math.RND.pick(FIRE_COLORS);
+            const radius = Phaser.Math.Between(2, 5);
+            const startX = baseX + Phaser.Math.Between(-30, 30);
+            const startY = baseY - Phaser.Math.Between(0, 25);
+            const orb = this.add.circle(startX, startY, radius, color, 0.9).setDepth(1096);
+            const glow = this.add.circle(startX, startY, radius * 2.8, color, 0.22).setDepth(1095);
+            if (this.skillChargeFxContainer) {
+                this.skillChargeFxContainer.add([glow, orb]);
+            }
+            this.tweens.add({
+                targets: [orb, glow],
+                x: startX + Phaser.Math.Between(-18, 18),
+                y: startY - Phaser.Math.Between(38, 72),
+                alpha: 0,
+                scaleX: 0.25,
+                scaleY: 0.25,
+                duration: Phaser.Math.Between(650, 1050),
+                ease: 'Quad.easeOut',
+                delay: i * 55,
+                onComplete: () => { orb.destroy(); glow.destroy(); }
+            });
+        }
+    }
+
+    /** Devil Infernal Blaze tick: fire orbs arc from the devil toward the hero. */
+    spawnInfernalBlazeTick(enemy) {
+        const FIRE_COLORS = [0xff4400, 0xff8800, 0xffcc00, 0xff6600];
+        const spriteY = (enemy.enemySprite ? enemy.enemySprite.y : enemy.pos.y);
+        const playerCenterX = GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) * 0.25;
+        for (let i = 0; i < 5; i++) {
+            const color = Phaser.Math.RND.pick(FIRE_COLORS);
+            const radius = Phaser.Math.Between(3, 6);
+            const startX = enemy.pos.x + Phaser.Math.Between(-22, 22);
+            const startY = spriteY - Phaser.Math.Between(5, 28);
+            const orb = this.add.circle(startX, startY, radius, color, 0.92).setDepth(1096);
+            const glow = this.add.circle(startX, startY, radius * 2.5, color, 0.28).setDepth(1095);
+            if (this.skillChargeFxContainer) {
+                this.skillChargeFxContainer.add([orb, glow]);
+            }
+            this.tweens.add({
+                targets: [orb, glow],
+                x: playerCenterX + Phaser.Math.Between(-18, 18),
+                y: FIGHT_PANEL_Y + 35,
+                alpha: 0,
+                duration: Phaser.Math.Between(480, 720),
+                ease: 'Cubic.easeIn',
+                delay: i * 50,
+                onComplete: () => { orb.destroy(); glow.destroy(); }
             });
         }
     }
@@ -6523,7 +6617,7 @@ class Match3Scene extends Phaser.Scene {
         this.storeScreenGroup.add([bg, panel]);
 
         // Title
-        const title = this.add.text(width / 2, 22, 'Rodent Emporium', {
+        const title = this.add.text(width / 2, 38, 'Rodent Emporium', {
             fontSize: '20px', color: '#ff99cc', fontStyle: 'bold'
         }).setOrigin(0.5);
         this.storeScreenGroup.add(title);
@@ -6555,7 +6649,7 @@ class Match3Scene extends Phaser.Scene {
         this.storeScreenGroup.add(this.storeGoldLabel);
 
         // Back button — top-left so it is always visible above the item grid
-        const backBtn = this.add.text(12, 12, 'Back to Game', {
+        const backBtn = this.add.text(12, 28, 'Back to Game', {
             fontSize: '14px', color: '#00ff00', backgroundColor: '#333333',
             padding: { left: 6, right: 6, top: 3, bottom: 3 }
         }).setOrigin(0, 0).setInteractive({ useHandCursor: true });
@@ -6834,25 +6928,25 @@ class Match3Scene extends Phaser.Scene {
         });
 
         // --- Fixed HUD overlay (not affected by pan/zoom) ---
-        const title = this.add.text(width / 2, 22, 'Talent Tree', {
+        const title = this.add.text(width / 2, 38, 'Talent Tree', {
             fontSize: '20px', color: '#ffd700', fontStyle: 'bold'
         }).setOrigin(0.5);
 
-        this.talentPointsLabel = this.add.text(width / 2, 44, 'Points: 0', {
+        this.talentPointsLabel = this.add.text(width / 2, 56, 'Points: 0', {
             fontSize: '13px', color: '#ffffff', fontStyle: 'bold'
         }).setOrigin(0.5);
 
-        this.talentHintText = this.add.text(width / 2, 63, 'Tap a node to view and assign', {
+        this.talentHintText = this.add.text(width / 2, 72, 'Tap a node to view and assign', {
             fontSize: '10px', color: '#886644', align: 'center'
         }).setOrigin(0.5);
 
-        const backBtn = this.add.text(12, 8, '← Back', {
+        const backBtn = this.add.text(12, 26, '← Back', {
             fontSize: '13px', color: '#00ffcc', backgroundColor: '#1a1a2e',
             padding: { left: 8, right: 8, top: 3, bottom: 3 }
         }).setOrigin(0, 0).setInteractive({ useHandCursor: true });
         backBtn.on('pointerup', () => this.showGameScreen());
 
-        this.talentZoomText = this.add.text(width - 12, 8, '100%', {
+        this.talentZoomText = this.add.text(width - 12, 26, '100%', {
             fontSize: '11px', color: '#888899'
         }).setOrigin(1, 0);
 
@@ -7226,7 +7320,7 @@ class Match3Scene extends Phaser.Scene {
             fontSize: '12px',
             color: '#bfbfbf'
         }).setOrigin(0.5);
-        const backBtn = this.add.text(12, 12, 'Back to Game', {
+        const backBtn = this.add.text(12, 28, 'Back to Game', {
             fontSize: '14px',
             color: '#00ffcc',
             backgroundColor: '#333333',
@@ -9000,6 +9094,9 @@ class Match3Scene extends Phaser.Scene {
             return;
         }
 
+        // Stop ambient particle emitter if present (e.g. devil fire)
+        if (enemy.particleTimer) { enemy.particleTimer.remove(false); enemy.particleTimer = null; }
+
         enemy.alive = false;
         enemy.health = 0;
         // Immediately zero the health bar — kill any in-progress tween so yellow/partial fill disappears
@@ -10260,6 +10357,31 @@ class Match3Scene extends Phaser.Scene {
             }
         }
 
+        // Infernal Blaze innate: Devil deals bonus fire damage bypassing armour each attack
+        const infernalBlaze = bodyCfg && bodyCfg.innate && bodyCfg.innate.find(t => t.id === 'infernalBlaze');
+        if (infernalBlaze && enemy.alive) {
+            const fireDmg = Math.max(2, Math.floor(enemy.attack * 0.35));
+            if (this.player.currentShield > 0) {
+                const shieldAbs = Math.min(this.player.currentShield, fireDmg);
+                this.player.currentShield -= shieldAbs;
+                const remainder = fireDmg - shieldAbs;
+                if (remainder > 0) this.player.health = Math.max(0, this.player.health - remainder);
+            } else {
+                this.player.health = Math.max(0, this.player.health - fireDmg);
+            }
+            this.spawnInfernalBlazeTick(enemy);
+            const playerCenterX = GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) * 0.25;
+            this.showCombatMessage(`\ud83d\udd25-${fireDmg}`, '#ff6600', playerCenterX, FIGHT_PANEL_Y + 30);
+            this.addCombatLog(`\ud83d\udd25 ${enemy.name}'s Infernal Blaze scorches you for ${fireDmg} fire damage!`, '#ff6600');
+            this.updatePlayerUI();
+            if (this.player.health <= 0) {
+                if (this.playerSprite) this.playerSprite.play(this.getPlayerHeroClass() + '_death');
+                this.isSwapping = true;
+                this.time.delayedCall(900, () => this.showDeathScreen(enemy.name + ' (Infernal Blaze)'));
+                return;
+            }
+        }
+
         if (totalBlockChance > 0 && Math.random() * 100 < totalBlockChance) {
             this.addCombatLog(`Blocked ${enemy.name}'s attack! (${totalBlockChance}%)`, '#ffd700');
             const blockX = GRID_OFFSET_X + (GRID_WIDTH * TILE_SIZE) * 0.25;
@@ -10664,6 +10786,10 @@ class LoadScreen extends Phaser.Scene {
             frameHeight: 130
         });
         this.load.spritesheet('guineapiglich', 'assets/sprites/guineapiglich.png', {
+            frameWidth: 341,
+            frameHeight: 279
+        });
+        this.load.spritesheet('devil', 'assets/sprites/devil.png', {
             frameWidth: 341,
             frameHeight: 279
         });
