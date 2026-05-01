@@ -1990,7 +1990,7 @@ class Match3Scene extends Phaser.Scene {
 
         // --- Wizard sprite animations (row 0=idle, 1=attack, 2=hit, 3=death) ---
         this.anims.create({ key: 'wizard_idle', frames: this.anims.generateFrameNumbers('wizard', { start: 0, end: 5 }), frameRate: 5, repeat: -1 });
-        this.anims.create({ key: 'wizard_attack', frames: this.anims.generateFrameNumbers('wizard', { start: 6, end: 11 }), frameRate: 14, repeat: 0 });
+        this.anims.create({ key: 'wizard_attack', frames: this.anims.generateFrameNumbers('wizard', { start: 6, end: 9 }), frameRate: 14, repeat: 0 });
         this.anims.create({ key: 'wizard_hit', frames: this.anims.generateFrameNumbers('wizard', { start: 12, end: 17 }), frameRate: 12, repeat: 0 });
         this.anims.create({ key: 'wizard_death', frames: this.anims.generateFrameNumbers('wizard', { start: 18, end: 23 }), frameRate: 8, repeat: 0 });
 
@@ -2693,17 +2693,14 @@ class Match3Scene extends Phaser.Scene {
     }
 
     getGoldDisplayParticleTarget() {
-        if (!this.goldDisplayText) return null;
-        const x = this.goldDisplayText.x;
-        const y = this.goldDisplayText.y;
-        return { x, y };
+        if (!this.topGoldBarText) return null;
+        return { x: this.topGoldBarText.x, y: this.topGoldBarText.y };
     }
 
     flashGoldDisplay(color) {
-        if (!this.goldDisplayText) return;
-
+        if (!this.topGoldBarText) return;
         this.tweens.add({
-            targets: this.goldDisplayText,
+            targets: this.topGoldBarText,
             scaleX: 1.3,
             scaleY: 1.3,
             duration: 120,
@@ -5616,9 +5613,9 @@ class Match3Scene extends Phaser.Scene {
         if (this.playerSprite.texture.key !== heroClass) {
             this.playerSprite.setTexture(heroClass);
             if (heroClass === 'warrior') {
-                this.playerSprite.setScale(1.3);
+                this.playerSprite.setOrigin(0.5, 0.5).setScale(1.3);
             } else {
-                this.playerSprite.setDisplaySize(201, 165);
+                this.playerSprite.setOrigin(0.5, 0.5).setScale(0.5);
             }
             this.playerSprite.play(heroClass + '_idle');
         }
@@ -5684,11 +5681,11 @@ class Match3Scene extends Phaser.Scene {
         this.hudContainer.add(this.add.rectangle(leftCX, panelH / 2 + 22, panelW, panelH, 0x111111, 0.9).setOrigin(0.5));
         // Sprite-based player character — class determined by highest stat
         const heroClass = this.getPlayerHeroClass();
-        this.playerSprite = this.add.sprite(leftCX, 115, heroClass).setOrigin(0.5, 0.5);
+        this.playerSprite = this.add.sprite(leftCX, 115, heroClass);
         if (heroClass === 'warrior') {
-            this.playerSprite.setScale(1.3);
+            this.playerSprite.setOrigin(0.5, 0.5).setScale(1.3);
         } else {
-            this.playerSprite.setDisplaySize(201, 165);
+            this.playerSprite.setOrigin(0.5, 0.5).setScale(0.5);
         }
         this.playerSprite.play(heroClass + '_idle');
         this.playerSprite.on('animationcomplete', (anim) => {
@@ -5722,13 +5719,8 @@ class Match3Scene extends Phaser.Scene {
         this.encounterSize = 1;
         this.buildEnemyGroup(this.battleNumber, this.hudContainer);
         if (this.enemyEncounterLabel) this.enemyEncounterLabel.setText('');
-        // --- Gold display (under player HP bar) ---
         // --- Gold display and full-game screens/buttons (dev mode only) ---
         if (this.devMode) {
-            this.goldDisplayIcon = this.add.text(14, 225, '\ud83e\ude99', { fontSize: '14px' }).setOrigin(0, 0.5);
-            this.goldDisplayText = this.add.text(32, 225, '0', { fontSize: '13px', color: '#ffd966', fontStyle: 'bold' }).setOrigin(0, 0.5);
-            this.hudContainer.add([this.goldDisplayIcon, this.goldDisplayText]);
-
             this.createEquipmentScreen();
             this.createSkillsScreen();
             this.createTalentScreen();
@@ -6650,6 +6642,7 @@ class Match3Scene extends Phaser.Scene {
         this.addCombatLog(`Learned ${node.name}! ${node.shortDesc}`, '#ffd700');
         this.closeTalentNodePopup();
         this.refreshTalentScreenUI();
+        this.refreshPlayerSprite();
     }
 
     undoTalent(nodeId) {
@@ -6667,6 +6660,7 @@ class Match3Scene extends Phaser.Scene {
         this.addCombatLog(`Refunded ${node.name}.`, '#aaaaaa');
         this.closeTalentNodePopup();
         this.refreshTalentScreenUI();
+        this.refreshPlayerSprite();
     }
 
     // ----------------------------------------------------------------
@@ -10801,7 +10795,7 @@ class TownScene extends Phaser.Scene {
         if (townHeroClass === 'warrior') {
             townHero.setScale(0.9);
         } else {
-            townHero.setDisplaySize(Math.round(155 * 0.9), Math.round(130 * 0.9));
+            townHero.setOrigin(0.5, 1.0).setScale(0.5);
         }
         townHero.play(townHeroClass + '_idle');
 
