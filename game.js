@@ -2011,7 +2011,7 @@ class Match3Scene extends Phaser.Scene {
         this.anims.create({ key: 'warrior_death', frames: this.anims.generateFrameNumbers('warrior', { start: 18, end: 23 }), frameRate: 8, repeat: 0 });
 
         // --- Ranger sprite animations (row 0=idle, 1=attack, 2=hit, 3=death) ---
-        this.anims.create({ key: 'ranger_idle', frames: this.anims.generateFrameNumbers('ranger', { start: 0, end: 5 }), frameRate: 5, repeat: -1 });
+        this.anims.create({ key: 'ranger_idle', frames: this.anims.generateFrameNumbers('ranger', { start: 0, end: 5 }), frameRate: 3, repeat: -1 });
         this.anims.create({ key: 'ranger_attack', frames: this.anims.generateFrameNumbers('ranger', { start: 6, end: 11 }), frameRate: 14, repeat: 0 });
         this.anims.create({ key: 'ranger_hit', frames: this.anims.generateFrameNumbers('ranger', { start: 12, end: 17 }), frameRate: 12, repeat: 0 });
         this.anims.create({ key: 'ranger_death', frames: this.anims.generateFrameNumbers('ranger', { start: 18, end: 23 }), frameRate: 8, repeat: 0 });
@@ -2068,7 +2068,8 @@ class Match3Scene extends Phaser.Scene {
 
         // Devil Worm boss animations (flipped to face hero via sprite.setFlipX)
         // Row 0=idle (0→5), Row 1=attack with fire (6→11), Row 2=hit (12→17), Row 3=death/explosion (18→23)
-        this.anims.create({ key: 'devil_idle', frames: this.anims.generateFrameNumbers('devil', { start: 0, end: 5 }), frameRate: 4, repeat: -1 });
+        // Use only first 4 idle frames at low rate to minimise lateral drift between frames
+        this.anims.create({ key: 'devil_idle', frames: this.anims.generateFrameNumbers('devil', { start: 0, end: 3 }), frameRate: 2, repeat: -1 });
         this.anims.create({ key: 'devil_attack', frames: this.anims.generateFrameNumbers('devil', { start: 6, end: 11 }), frameRate: 10, repeat: 0 });
         this.anims.create({ key: 'devil_hit', frames: this.anims.generateFrameNumbers('devil', { start: 12, end: 17 }), frameRate: 8, repeat: 0 });
         this.anims.create({ key: 'devil_death', frames: this.anims.generateFrameNumbers('devil', { start: 18, end: 23 }), frameRate: 6, repeat: 0 });
@@ -5708,8 +5709,10 @@ class Match3Scene extends Phaser.Scene {
             this.playerSprite.setTexture(heroClass);
             if (heroClass === 'warrior') {
                 this.playerSprite.setOrigin(0.5, 0.5).setScale(1.3);
+                this.playerSprite.setPosition(this.playerSprite.x, 115);
             } else {
-                this.playerSprite.setOrigin(0.5, 0.5).setScale(0.5);
+                this.playerSprite.setOrigin(0.5, 1).setDisplaySize(170, 138);
+                this.playerSprite.setPosition(this.playerSprite.x, 174);
             }
             this.playerSprite.play(heroClass + '_idle');
         }
@@ -5775,11 +5778,12 @@ class Match3Scene extends Phaser.Scene {
         this.hudContainer.add(this.add.rectangle(leftCX, panelH / 2 + 22, panelW, panelH, 0x111111, 0.9).setOrigin(0.5));
         // Sprite-based player character — class determined by highest stat
         const heroClass = this.getPlayerHeroClass();
-        this.playerSprite = this.add.sprite(leftCX, 115, heroClass);
+        this.playerSprite = this.add.sprite(leftCX, heroClass === 'warrior' ? 115 : 174, heroClass);
         if (heroClass === 'warrior') {
             this.playerSprite.setOrigin(0.5, 0.5).setScale(1.3);
         } else {
-            this.playerSprite.setOrigin(0.5, 0.5).setScale(0.5);
+            // Bottom-anchored origin pins the feet, preventing upper/lower body misalignment between frames
+            this.playerSprite.setOrigin(0.5, 1).setDisplaySize(170, 138);
         }
         this.playerSprite.play(heroClass + '_idle');
         this.playerSprite.on('animationcomplete', (anim) => {
@@ -5827,7 +5831,18 @@ class Match3Scene extends Phaser.Scene {
         } else if (getSkillGemsUnlocked()) {
             // Skill gems were unlocked via the rescue story event — show the Skills screen
             this.createSkillsScreen();
-            this.createSkillsButton(195, 245);
+            if (getRescuedFox()) {
+                // Gear is also available — show Char + Skills side by side
+                this.createEquipmentScreen();
+                this.createEquipmentButton(130, 245);
+                this.createSkillsButton(260, 245);
+            } else {
+                this.createSkillsButton(195, 245);
+            }
+        } else if (getRescuedFox()) {
+            // Fox rescued → gear unlocked, but skill gems not yet available
+            this.createEquipmentScreen();
+            this.createEquipmentButton(195, 245);
         }
 
         this.updatePlayerUI();
@@ -5870,7 +5885,12 @@ class Match3Scene extends Phaser.Scene {
 
         btnBg.on('pointerover', () => btnBg.setFillStyle(0x880000));
         btnBg.on('pointerout',  () => btnBg.setFillStyle(0x550000));
-        btnBg.on('pointerup',   () => this.scene.start('TownScene'));
+        btnBg.on('pointerup',   () => {
+            // Defensive cleanup so combat delayed calls cannot leak into town.
+            this.time.removeAllEvents();
+            this.tweens.killAll();
+            this.scene.start('TownScene');
+        });
 
         this.deathScreenGroup.add([bg, panel, title, this.deathHeroText, this.deathKillerText, btnBg, btnText]);
     }
@@ -10859,11 +10879,13 @@ class TownScene extends Phaser.Scene {
     constructor() {
         super('TownScene');
         this.gemGiftRefreshTimer = null;
+        this.isLeavingTown = false;
     }
 
     create() {
         const W = this.sys.game.config.width;
         const H = this.sys.game.config.height;
+        this.isLeavingTown = false;
 
         // Prevent delayed callbacks from prior popup flows from firing after scene switches.
         this.events.once('shutdown', () => {
@@ -10908,7 +10930,7 @@ class TownScene extends Phaser.Scene {
         const townHeroClass = getHeroClassFromPlayer(save && save.player ? save.player : null, townTalentStats);
         if (!this.anims.exists(townHeroClass + '_idle')) {
             if (townHeroClass === 'ranger') {
-                this.anims.create({ key: 'ranger_idle', frames: this.anims.generateFrameNumbers('ranger', { start: 0, end: 5 }), frameRate: 5, repeat: -1 });
+                this.anims.create({ key: 'ranger_idle', frames: this.anims.generateFrameNumbers('ranger', { start: 0, end: 5 }), frameRate: 3, repeat: -1 });
             } else if (townHeroClass === 'wizard') {
                 this.anims.create({ key: 'wizard_idle', frames: this.anims.generateFrameNumbers('wizard', { start: 0, end: 5 }), frameRate: 5, repeat: -1 });
             } else {
@@ -11044,10 +11066,19 @@ class TownScene extends Phaser.Scene {
         }).setOrigin(0.5);
 
         const startForestRun = (devMode) => {
+            if (this.isLeavingTown) return;
+            this.isLeavingTown = true;
+            btnBg.disableInteractive();
+            devBtnBg.disableInteractive();
+
             if (this.gemGiftRefreshTimer) {
                 this.gemGiftRefreshTimer.remove(false);
                 this.gemGiftRefreshTimer = null;
             }
+            // Defensive cleanup: prevent delayed callbacks/tweens from the town UI
+            // from firing after we've already switched into Match3Scene.
+            this.time.removeAllEvents();
+            this.tweens.killAll();
             this.scene.start('Match3Scene', { devMode: !!devMode });
         };
 
